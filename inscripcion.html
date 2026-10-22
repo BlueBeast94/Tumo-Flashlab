@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscripción · TUMO Flash Lab</title>
+    <meta name="description" content="Inscribite al Flash Lab de TUMO Buenos Aires.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=Caveat:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-form">
+
+    <header class="nav">
+        <a href="index.html" class="nav__logo" aria-label="TUMO Buenos Aires — volver al inicio">
+            <span class="logo-tumo">TUMO</span>
+            <span class="logo-city">Buenos<br>Aires</span>
+        </a>
+        <a href="index.html" class="btn btn--ghost btn--sm">← Volver</a>
+    </header>
+
+    <main>
+        <section class="form-hero">
+            <p class="kicker">Flash Lab · Sáb 13 de diciembre</p>
+            <h1>Inscripci<span class="hand hand--red">ó</span>n</h1>
+            <p class="section__lead">Completá los datos del estudiante y de su adulto responsable. Te vamos a escribir a los dos mails.</p>
+        </section>
+
+        <form class="signup" data-signup novalidate>
+
+            <!-- 1. Flash Lab -->
+            <fieldset class="signup__block">
+                <legend><span class="signup__num">1</span> Elegí el Flash Lab</legend>
+                <div class="lab-picker" data-lab-picker></div>
+                <p class="field__error" data-error-for="lab"></p>
+            </fieldset>
+
+            <!-- 2. Turno -->
+            <fieldset class="signup__block">
+                <legend><span class="signup__num">2</span> Horario</legend>
+                <div class="turno-picker" data-turno-picker></div>
+                <p class="field__error" data-error-for="turno"></p>
+            </fieldset>
+
+            <!-- 3. Estudiante -->
+            <fieldset class="signup__block">
+                <legend><span class="signup__num">3</span> Datos del estudiante</legend>
+                <div class="fields">
+                    <label class="field">
+                        <span>Nombre</span>
+                        <input name="nombre" required autocomplete="off">
+                    </label>
+                    <label class="field">
+                        <span>Apellido</span>
+                        <input name="apellido" required autocomplete="off">
+                    </label>
+                    <label class="field">
+                        <span>Documento (DNI)</span>
+                        <input name="documento" required inputmode="numeric" pattern="\d{7,8}" placeholder="Sin puntos" autocomplete="off">
+                    </label>
+                    <label class="field">
+                        <span>Correo del estudiante</span>
+                        <input name="email" type="email" required autocomplete="off">
+                    </label>
+                </div>
+            </fieldset>
+
+            <!-- 4. Responsable -->
+            <fieldset class="signup__block">
+                <legend><span class="signup__num">4</span> Padre, madre o responsable</legend>
+                <div class="fields">
+                    <label class="field">
+                        <span>Nombre</span>
+                        <input name="respNombre" required autocomplete="given-name">
+                    </label>
+                    <label class="field">
+                        <span>Apellido</span>
+                        <input name="respApellido" required autocomplete="family-name">
+                    </label>
+                    <label class="field field--wide">
+                        <span>Correo del responsable</span>
+                        <input name="respEmail" type="email" required autocomplete="email">
+                    </label>
+                </div>
+                <label class="check">
+                    <input type="checkbox" name="autorizacion" required>
+                    <span>Soy el adulto responsable y autorizo la participación del estudiante en el Flash Lab.</span>
+                </label>
+            </fieldset>
+
+            <div class="signup__submit">
+                <p class="signup__summary" data-summary></p>
+                <button type="submit" class="btn btn--red btn--lg">Enviar inscripción</button>
+                <p class="signup__msg" data-form-msg aria-live="polite"></p>
+            </div>
+        </form>
+
+        <!-- Confirmación de envío -->
+        <section class="signup-done" data-done hidden>
+            <span class="signup-done__icon">✓</span>
+            <h2>¡Recibimos tu inscripción!</h2>
+            <p data-done-text></p>
+            <p class="signup-done__next">
+                Revisá tu correo (y el del responsable): te enviamos un link para <strong>confirmar en las próximas 48 horas</strong>.
+            </p>
+            <a href="index.html" class="btn btn--blue">Volver al inicio</a>
+        </section>
+
+        <!-- Consultar estado -->
+        <section class="status-wrap" id="estado">
+            <div class="status">
+                <h3>¿Ya te inscribiste?</h3>
+                <p>Ingresá el documento del estudiante para ver el estado de la inscripción.</p>
+                <form class="status__form" data-status-form>
+                    <label class="sr-only" for="status-dni">Documento</label>
+                    <input id="status-dni" inputmode="numeric" required placeholder="DNI sin puntos">
+                    <button type="submit" class="btn btn--yellow">Consultar</button>
+                </form>
+                <p class="status__result" data-status-result aria-live="polite"></p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer__logo">
+            <span class="logo-tumo">TUMO</span>
+            <span class="logo-city">Buenos<br>Aires</span>
+        </div>
+        <p>Centro de tecnologías creativas para adolescentes. Gratuito.</p>
+        <p class="footer__small">© 2026 TUMO Buenos Aires</p>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="form.js"></script>
+</body>
+</html>

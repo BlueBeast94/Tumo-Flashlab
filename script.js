@@ -1,120 +1,101 @@
 // ==========================================================
-// TUMO Flash Lab — lógica de la página
+// TUMO Flash Lab — landing (index.html)
+// Usa LABS, TURNOS y CONFIG de config.js
 // ==========================================================
 
-const CONFIG = {
-    // Link al Google Form de inscripción
-    FORM_URL: "",
-    // URL del Web App de Google Apps Script (devuelve los confirmados y el estado por mail).
-    // Mientras esté vacío, la página muestra datos de ejemplo.
-    API_URL: "",
-    CAPACITY: 20,
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => root.querySelectorAll(sel);
+
+const signupUrl = (lab) => `inscripcion.html?lab=${encodeURIComponent(lab.id)}`;
+
+// Animaciones del encabezado del panel (se reemplazan por lab.media cuando haya GIF/video)
+const LAB_ART = {
+    programacion: `
+        <div class="art-code">
+            <div class="art-code__bar"><i></i><i></i><i></i></div>
+            <span class="art-code__line" style="--w:70%;--d:0s"></span>
+            <span class="art-code__line art-code__line--in" style="--w:55%;--d:.6s"></span>
+            <span class="art-code__line art-code__line--in" style="--w:80%;--d:1.2s"></span>
+            <span class="art-code__line" style="--w:35%;--d:1.8s"></span>
+            <span class="art-code__cursor"></span>
+        </div>`,
+    videojuegos: `
+        <div class="art-game">
+            <span class="art-game__coin" style="--d:0s"></span>
+            <span class="art-game__coin" style="--d:-1s"></span>
+            <span class="art-game__hero"></span>
+            <span class="art-game__block" style="--d:0s"></span>
+            <span class="art-game__block" style="--d:-1.4s"></span>
+            <span class="art-game__ground"></span>
+        </div>`,
+    animacion: `
+        <div class="art-anim">
+            <span class="art-anim__ghost" style="--x:-120px;--o:.15;--t:-.3s"></span>
+            <span class="art-anim__ghost" style="--x:-80px;--o:.3;--t:-.2s"></span>
+            <span class="art-anim__ghost" style="--x:-40px;--o:.5;--t:-.1s"></span>
+            <span class="art-anim__ball"></span>
+            <span class="art-anim__floor"></span>
+        </div>`,
+    robotica: `
+        <div class="art-robot">
+            <span class="art-robot__gear art-robot__gear--big"></span>
+            <span class="art-robot__gear art-robot__gear--small"></span>
+            <div class="art-robot__head"><i></i><i></i></div>
+        </div>`,
 };
 
-// Datos de ejemplo hasta conectar la planilla
-const DEMO = {
-    confirmed: ["Martina G.", "Tomás R.", "Lucía P.", "Benjamín S.", "Sofía L.",
-                "Joaquín M.", "Valentina D.", "Mateo F.", "Camila A.", "Thiago B.",
-                "Emma C.", "Santino V."],
-};
+function renderCards() {
+    const wrap = $("[data-lab-cards]");
+    wrap.innerHTML = LABS.map((lab) => `
+        <article class="card card--${lab.color}">
+            <span class="card__icon">${lab.icon}</span>
+            <h3>
+                <button class="card__open" data-open-lab="${lab.id}" aria-haspopup="dialog">${lab.name}</button>
+            </h3>
+            <p>${lab.short}</p>
+            <div class="card__foot">
+                <span class="card__time">${lab.turnos.join(" · ")}</span>
+                <span class="card__more" aria-hidden="true">Ver más +</span>
+            </div>
+            <a class="btn card__signup" href="${signupUrl(lab)}">Inscribirme</a>
+        </article>`).join("");
 
-const $  = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
-
-function setStat(name, value) {
-    $$(`[data-stat="${name}"]`).forEach((el) => { el.textContent = value; });
-}
-
-function renderBoard(names) {
-    const list = $("[data-list]");
-    const capacity = CONFIG.CAPACITY;
-    const taken = Math.min(names.length, capacity);
-
-    list.innerHTML = "";
-    for (let i = 0; i < capacity; i++) {
-        const li = document.createElement("li");
-        const label = document.createElement("span");
-        if (i < taken) {
-            label.textContent = names[i];
-            li.classList.add("is-new");
-            li.style.animationDelay = `${i * 40}ms`;
-        } else {
-            label.textContent = "Lugar disponible";
-            li.classList.add("is-empty");
-        }
-        li.appendChild(label);
-        list.appendChild(li);
-    }
-
-    setStat("capacity", capacity);
-    setStat("confirmed", taken);
-    setStat("left", capacity - taken);
-    $("[data-progress]").setAttribute("aria-valuenow", taken);
-    $("[data-progress-bar]").style.width = `${(taken / capacity) * 100}%`;
-}
-
-async function loadBoard() {
-    if (!CONFIG.API_URL) {
-        $("[data-demo-flag]").hidden = false;
-        renderBoard(DEMO.confirmed);
-        return;
-    }
-    try {
-        const res = await fetch(`${CONFIG.API_URL}?action=board`);
-        const data = await res.json();
-        renderBoard(data.confirmed || []);
-    } catch (err) {
-        console.error("No se pudo cargar la lista de confirmados", err);
-        renderBoard([]);
-    }
-}
-
-const STATUS_TEXT = {
-    registered: ["Recibimos tu inscripción. Revisá tu mail para confirmar.", "is-warn"],
-    confirmed:  ["¡Confirmaste! Estás dentro de los primeros 20.", "is-ok"],
-    waitlist:   ["Confirmaste, pero estás en lista de espera. Te avisamos si se libera un lugar.", "is-warn"],
-    expired:    ["Tu lugar se liberó porque no confirmaste a tiempo.", "is-warn"],
-    not_found:  ["No encontramos ese mail. ¿Ya completaste el formulario?", "is-warn"],
-};
-
-async function checkStatus(email) {
-    if (!CONFIG.API_URL) return "not_found";
-    const res = await fetch(`${CONFIG.API_URL}?action=status&email=${encodeURIComponent(email)}`);
-    const data = await res.json();
-    return data.status || "not_found";
-}
-
-function initStatusForm() {
-    const form = $("[data-status-form]");
-    const out = $("[data-status-result]");
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const email = form.querySelector("input").value.trim().toLowerCase();
-        out.className = "status__result";
-        out.textContent = "Buscando…";
-        try {
-            const [text, cls] = STATUS_TEXT[await checkStatus(email)] || STATUS_TEXT.not_found;
-            out.textContent = CONFIG.API_URL ? text : "Modo demo: todavía no está conectada la planilla.";
-            out.classList.add(cls);
-        } catch (err) {
-            out.textContent = "Hubo un problema al consultar. Probá de nuevo en un rato.";
-            out.classList.add("is-warn");
-        }
+    $$("[data-open-lab]", wrap).forEach((btn) => {
+        btn.addEventListener("click", () => openPanel(btn.dataset.openLab));
     });
 }
 
-function initFormLink() {
-    const link = $("[data-form-link]");
-    if (CONFIG.FORM_URL) {
-        link.href = CONFIG.FORM_URL;
-    } else {
-        link.addEventListener("click", (e) => {
-            e.preventDefault();
-            alert("El formulario todavía no está publicado.");
-        });
-    }
+function openPanel(id) {
+    const lab = findLab(id);
+    const panel = $("[data-lab-panel]");
+
+    panel.className = `lab-panel lab-panel--${lab.color}`;
+    $("[data-lab-media]").innerHTML = lab.media
+        ? (/\.(mp4|webm)$/i.test(lab.media)
+            ? `<video src="${lab.media}" autoplay muted loop playsinline></video>`
+            : `<img src="${lab.media}" alt="">`)
+        : LAB_ART[lab.id] || "";
+    $("[data-lab-title]").textContent = lab.name;
+    $("[data-lab-intro]").textContent = lab.intro;
+    $("[data-lab-list]").innerHTML = lab.youWill.map((item) => `<li>${item}</li>`).join("");
+    $("[data-lab-turnos]").innerHTML = lab.turnos
+        .map((t) => `${t} · ${TURNOS[t].time}`).join("<br>");
+    $("[data-lab-take]").textContent = lab.takeHome;
+    $("[data-lab-signup]").href = signupUrl(lab);
+    $("[data-lab-signup]").textContent = `Inscribirme a ${lab.name}`;
+
+    panel.showModal();
 }
 
-loadBoard();
-initStatusForm();
-initFormLink();
+function initPanel() {
+    const panel = $("[data-lab-panel]");
+    $("[data-lab-close]").addEventListener("click", () => panel.close());
+    // Cerrar tocando fuera del panel
+    panel.addEventListener("click", (e) => {
+        if (e.target === panel) panel.close();
+    });
+}
+
+$$('[data-stat="capacity"]').forEach((el) => { el.textContent = CONFIG.CAPACITY; });
+renderCards();
+initPanel();

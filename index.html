@@ -20,12 +20,12 @@
         </a>
         <nav class="nav__links" aria-label="Secciones">
             <a href="#que-es">Qué es</a>
-            <a href="#actividades">Actividades</a>
             <a href="#como-funciona">Cómo funciona</a>
-            <a href="#confirmados">Confirmados</a>
+            <a href="#actividades">Actividades</a>
+            <a href="#donde">Dónde</a>
             <a href="#faq">FAQ</a>
         </nav>
-        <a href="#inscripcion" class="btn btn--blue btn--sm">Inscribite</a>
+        <a href="inscripcion.html" class="btn btn--blue btn--sm">Inscribite</a>
     </header>
 
     <main id="top">
@@ -45,16 +45,16 @@
                 <div class="hero__meta">
                     <div class="meta-pill meta-pill--yellow">
                         <span class="meta-pill__label">Fecha</span>
-                        <span class="meta-pill__value" data-event="date">Sáb 13 de diciembre</span>
+                        <span class="meta-pill__value">Sáb 13 de diciembre</span>
                     </div>
                     <div class="meta-pill meta-pill--red">
                         <span class="meta-pill__label">Cupos</span>
-                        <span class="meta-pill__value"><span data-stat="capacity">20</span> lugares</span>
+                        <span class="meta-pill__value"><span data-stat="capacity">20</span> por turno</span>
                     </div>
                 </div>
                 <div class="hero__cta">
-                    <a href="#inscripcion" class="btn btn--red">Quiero inscribirme</a>
-                    <a href="#estado" class="btn btn--ghost">Consultar mi estado</a>
+                    <a href="inscripcion.html" class="btn btn--red">Quiero inscribirme</a>
+                    <a href="#actividades" class="btn btn--ghost">Ver actividades</a>
                 </div>
             </div>
 
@@ -71,10 +71,6 @@
                     <circle cx="450" cy="430" r="58" fill="var(--red)" />
                     <text x="450" y="442" text-anchor="middle" class="path-art__label">GO!</text>
                 </svg>
-                <div class="counter-card">
-                    <span class="counter-card__num"><span data-stat="left">20</span></span>
-                    <span class="counter-card__txt">lugares<br>disponibles</span>
-                </div>
             </div>
         </section>
 
@@ -100,42 +96,8 @@
             </div>
         </section>
 
-        <!-- ACTIVIDADES -->
-        <section class="section section--light" id="actividades">
-            <p class="kicker">Actividades</p>
-            <h2>Elegí tu <span class="hand hand--blue">c</span>amino</h2>
-            <p class="section__lead">Cada actividad responde a uno de los learning targets de TUMO.</p>
-
-            <div class="cards">
-                <article class="card card--blue">
-                    <span class="card__icon">&lt;/&gt;</span>
-                    <h3>Programación</h3>
-                    <p>Escribí tu primer programa y hacé que algo cobre vida en pantalla.</p>
-                    <span class="card__time">10:00 – 13:00</span>
-                </article>
-                <article class="card card--red">
-                    <span class="card__icon">▶</span>
-                    <h3>Game Development</h3>
-                    <p>Diseñá las reglas, los niveles y jugá tu propio videojuego.</p>
-                    <span class="card__time">10:00 – 13:00</span>
-                </article>
-                <article class="card card--yellow">
-                    <span class="card__icon">✦</span>
-                    <h3>Animación</h3>
-                    <p>Del boceto al movimiento: creá una animación corta cuadro a cuadro.</p>
-                    <span class="card__time">14:00 – 17:00</span>
-                </article>
-                <article class="card card--dark">
-                    <span class="card__icon">⚙</span>
-                    <h3>Robótica</h3>
-                    <p>Armá, conectá y programá un robot que resuelva un desafío.</p>
-                    <span class="card__time">14:00 – 17:00</span>
-                </article>
-            </div>
-        </section>
-
         <!-- CÓMO FUNCIONA -->
-        <section class="section" id="como-funciona">
+        <section class="section section--light" id="como-funciona">
             <p class="kicker">Cómo funciona</p>
             <h2>Tu lugar, paso a paso</h2>
 
@@ -153,7 +115,7 @@
                 <li class="step">
                     <span class="step__dot step__dot--blue">3</span>
                     <h3>Lugar asegurado</h3>
-                    <p>Los primeros 20 confirmados quedan adentro. Los demás pasan a lista de espera.</p>
+                    <p>Los primeros 20 confirmados de cada turno quedan adentro. Los demás pasan a lista de espera.</p>
                 </li>
                 <li class="step">
                     <span class="step__dot step__dot--yellow">4</span>
@@ -168,38 +130,17 @@
             </p>
         </section>
 
-        <!-- CONFIRMADOS + ESTADO -->
-        <section class="section section--blue" id="confirmados">
-            <div class="board">
-                <div class="board__head">
-                    <p class="kicker kicker--light">En vivo</p>
-                    <h2>Top <span data-stat="capacity">20</span> confirmados</h2>
-                    <p class="section__lead">
-                        Mostramos sólo el nombre y la inicial del apellido.
-                        <span class="demo-flag" data-demo-flag hidden>Datos de ejemplo</span>
-                    </p>
-                    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0" data-progress>
-                        <span class="progress__bar" data-progress-bar></span>
-                    </div>
-                    <p class="progress__txt"><strong data-stat="confirmed">0</strong> de <span data-stat="capacity">20</span> lugares ocupados</p>
-                </div>
-                <ol class="board__list" data-list></ol>
-            </div>
+        <!-- ACTIVIDADES -->
+        <section class="section" id="actividades">
+            <p class="kicker">Actividades</p>
+            <h2>Elegí tu <span class="hand hand--blue">c</span>amino</h2>
+            <p class="section__lead">Tocá una actividad para ver de qué se trata. Cada una responde a uno de los learning targets de TUMO.</p>
 
-            <div class="status" id="estado">
-                <h3>¿Ya te inscribiste?</h3>
-                <p>Ingresá el mail que usaste en el formulario para ver tu estado.</p>
-                <form class="status__form" data-status-form>
-                    <label class="sr-only" for="status-email">Email</label>
-                    <input id="status-email" type="email" required placeholder="tu@email.com" autocomplete="email">
-                    <button type="submit" class="btn btn--yellow">Consultar</button>
-                </form>
-                <p class="status__result" data-status-result aria-live="polite"></p>
-            </div>
+            <div class="cards" data-lab-cards></div>
         </section>
 
         <!-- CUÁNDO Y DÓNDE -->
-        <section class="section" id="donde">
+        <section class="section section--light" id="donde">
             <div class="split">
                 <div>
                     <p class="kicker">Cuándo y dónde</p>
@@ -208,15 +149,15 @@
                 <div class="info-grid">
                     <div class="info">
                         <span class="info__label">Día</span>
-                        <span class="info__value" data-event="date">Sáb 13 de diciembre</span>
+                        <span class="info__value">Sáb 13 de diciembre</span>
                     </div>
                     <div class="info">
-                        <span class="info__label">Horario</span>
-                        <span class="info__value" data-event="time">10:00 – 17:00</span>
+                        <span class="info__label">Turnos</span>
+                        <span class="info__value">TM 10:00 – 13:00<br>TT 14:00 – 17:00</span>
                     </div>
                     <div class="info info--wide">
                         <span class="info__label">Lugar</span>
-                        <span class="info__value" data-event="place">Dirección a confirmar</span>
+                        <span class="info__value">Dirección a confirmar</span>
                     </div>
                     <div class="info info--wide">
                         <span class="info__label">Qué traer</span>
@@ -226,8 +167,18 @@
             </div>
         </section>
 
+        <!-- CTA -->
+        <section class="cta" id="inscripcion">
+            <svg class="cta__path" viewBox="0 0 1200 200" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M-20 150 H420 a60 60 0 0 0 0 -120 H780 a60 60 0 0 1 0 120 H1220" />
+            </svg>
+            <h2>Asegurá tu lugar</h2>
+            <p>Son sólo <strong><span data-stat="capacity">20</span> cupos por turno</strong>. Inscribite ahora y confirmá cuando te llegue el mail.</p>
+            <a href="inscripcion.html" class="btn btn--yellow btn--lg">Ir al formulario</a>
+        </section>
+
         <!-- FAQ -->
-        <section class="section section--light" id="faq">
+        <section class="section" id="faq">
             <p class="kicker">Preguntas frecuentes</p>
             <h2>Antes de que preguntes</h2>
             <div class="faq">
@@ -237,7 +188,7 @@
                 </details>
                 <details>
                     <summary>¿Puedo inscribir a mi hijo/a?</summary>
-                    <p>Sí. Un adulto puede completar el formulario con los datos del participante. Cada participante cuenta una sola vez, aunque se use el mismo mail.</p>
+                    <p>Sí. Un adulto puede completar el formulario con los datos del participante. Cada participante cuenta una sola vez (lo identificamos por su documento).</p>
                 </details>
                 <details>
                     <summary>¿Qué pasa si no confirmo a tiempo?</summary>
@@ -245,7 +196,7 @@
                 </details>
                 <details>
                     <summary>¿Me puedo anotar a más de una actividad?</summary>
-                    <p>No. Para que más chicos puedan participar, cada persona puede tener un solo lugar confirmado.</p>
+                    <p>No. Para que más chicos puedan participar, cada persona puede tener un solo lugar.</p>
                 </details>
                 <details>
                     <summary>¿Necesito saber algo antes?</summary>
@@ -254,17 +205,31 @@
             </div>
         </section>
 
-        <!-- CTA -->
-        <section class="cta" id="inscripcion">
-            <svg class="cta__path" viewBox="0 0 1200 200" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M-20 150 H420 a60 60 0 0 0 0 -120 H780 a60 60 0 0 1 0 120 H1220" />
-            </svg>
-            <h2>Asegurá tu lugar</h2>
-            <p>Son sólo <strong><span data-stat="capacity">20</span> cupos</strong>. Inscribite ahora y confirmá cuando te llegue el mail.</p>
-            <a href="#" class="btn btn--yellow btn--lg" data-form-link target="_blank" rel="noopener">Ir al formulario</a>
-        </section>
-
     </main>
+
+    <!-- Panel de detalle de cada lab -->
+    <dialog class="lab-panel" data-lab-panel aria-labelledby="lab-panel-title">
+        <div class="lab-panel__media" data-lab-media></div>
+        <button class="lab-panel__close" data-lab-close aria-label="Cerrar">✕</button>
+        <div class="lab-panel__body">
+            <p class="kicker" data-lab-kicker>Flash Lab</p>
+            <h2 id="lab-panel-title" data-lab-title></h2>
+            <p class="lab-panel__intro" data-lab-intro></p>
+            <h3>Qué vas a hacer</h3>
+            <ul class="checklist" data-lab-list></ul>
+            <div class="lab-panel__facts">
+                <div class="info">
+                    <span class="info__label">Turnos</span>
+                    <span class="info__value" data-lab-turnos></span>
+                </div>
+                <div class="info">
+                    <span class="info__label">Te llevás</span>
+                    <span class="info__value" data-lab-take></span>
+                </div>
+            </div>
+            <a href="inscripcion.html" class="btn btn--red btn--lg lab-panel__cta" data-lab-signup>Inscribirme</a>
+        </div>
+    </dialog>
 
     <footer class="footer">
         <div class="footer__logo">
@@ -275,6 +240,7 @@
         <p class="footer__small">© 2026 TUMO Buenos Aires</p>
     </footer>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
