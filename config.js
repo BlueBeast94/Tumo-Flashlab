@@ -10,6 +10,28 @@ const CONFIG = {
     CAPACITY: 20, // lugares por lab y por turno
 };
 
+// Datos del evento. El chatbot responde sólo con esta información (y LABS / TURNOS).
+const EVENT = {
+    name: "TUMO Flash Lab",
+    date: "sábado 13 de diciembre de 2026",
+    place: "TUMO Buenos Aires (dirección a confirmar)",
+    ages: "12 a 18 años",
+    price: "Gratis",
+    bring: "Ganas de crear. Si es menor, la autorización firmada por su adulto responsable.",
+    rules: [
+        "Hay 20 lugares por cada lab y por cada turno.",
+        "Cada participante (identificado por su DNI) puede inscribirse a una sola actividad.",
+        "Después de inscribirse llega un mail al estudiante y al responsable con un link para confirmar.",
+        "Hay 48 horas para confirmar; a las 24 horas se envía un recordatorio. Si no se confirma, el lugar se libera.",
+        "Los primeros 20 que confirman en cada lab y turno tienen el lugar asegurado; el resto queda en lista de espera.",
+        "Si alguien se da de baja, el primero de la lista de espera sube automáticamente y recibe un mail.",
+        "Dos días antes y el mismo día del evento se envía un recordatorio con el lugar y horario.",
+        "No hace falta experiencia previa y todo el material lo pone TUMO.",
+        "La inscripción se hace en la página inscripcion.html del sitio; el estado se consulta ahí mismo con el DNI.",
+    ],
+    contact: "",  // mail de contacto para derivar preguntas que el bot no sepa responder
+};
+
 const TURNOS = {
     TM: { name: "Turno mañana", time: "10:00 – 13:00" },
     TT: { name: "Turno tarde",  time: "14:00 – 17:00" },

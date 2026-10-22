@@ -6,4 +6,5 @@ Repository created for the tumo flash lab of december
 - `config.js`: labs, turnos and the backend URL, shared by both pages
 - `style.css`: styles (brand colors from the TUMO BA identity manual)
 - `apps-script/Code.gs`: Google Sheets backend (duplicates, confirmations, emails)
-- `SETUP.md`: how to connect the sheet and the emails
+- `chatbot.js`, `api/chat.js`: "Flashy" chatbot (Groq) — see SETUP.md
+- `SETUP.md`: how to connect the sheet, the emails and the chatbot

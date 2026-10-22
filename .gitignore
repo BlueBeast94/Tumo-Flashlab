@@ -1,0 +1,4 @@
+# Claves locales (la API key de Groq va en Vercel → Settings → Environment Variables)
+.env
+.env.*
+.vercel

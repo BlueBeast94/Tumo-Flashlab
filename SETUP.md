@@ -54,3 +54,24 @@ and add the same `id` to `LABS` in `Code.gs`.
 - **One spot per event or across events?** Right now "active" means any registered/confirmed/waitlist row in this sheet. Use a new sheet per event to reset it.
 - **Confirmation window:** `EVENT.CONFIRM_HOURS` (48 h). Shorten it close to the event date.
 - **Privacy:** the status lookup only returns a status word, never names, emails or documents.
+
+---
+
+# Chatbot "Flashy" (Groq)
+
+The bottom-right robot answers questions about the Flash Lab using Groq's AI.
+The browser talks to `/api/chat` (a Vercel serverless function in `api/chat.js`),
+which adds the event info from `config.js` and calls Groq. The Groq key never reaches the browser.
+
+1. Create a free account at **console.groq.com** → **API Keys** → **Create API Key**. Copy it (starts with `gsk_`).
+2. In Vercel: project **tumoflashlab** → **Settings → Environment Variables** → add
+   - Name: `GROQ_API_KEY` · Value: your key · Environments: Production + Preview
+3. **Deployments** → latest → **⋯ → Redeploy** (env vars only apply to new deployments).
+4. Open the site, click the robot and ask something.
+
+Optional: `GROQ_MODEL` changes the model (default `openai/gpt-oss-20b`; e.g. `llama-3.3-70b-versatile`).
+
+**What the bot knows:** only what's in `config.js` (`EVENT`, `LABS`, `TURNOS`). Update those and push; the bot updates too.
+Set `EVENT.contact` to an email so the bot can point people there when it doesn't know an answer.
+
+**Local testing:** create `Tumo-Flashlab/.env.local` with `GROQ_API_KEY=gsk_...` (it's git-ignored, never commit it).
