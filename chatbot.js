@@ -33,6 +33,8 @@
     const root = document.createElement("div");
     root.className = "chat";
     root.innerHTML = `
+        <div class="chat__backdrop" data-chat-backdrop></div>
+
         <div class="chat__bubble" data-chat-bubble hidden>
             <button class="chat__bubble-close" data-chat-dismiss aria-label="Cerrar mensaje">✕</button>
             <strong>¿Tenés dudas?</strong>
@@ -77,10 +79,12 @@
 
     const escapeHtml = (text) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-    // Markdown mínimo: **negrita**, listas con "-" y saltos de línea
+    // Markdown mínimo: **negrita**, [links](/inscripcion.html), listas con "-" y saltos de línea.
+    // Sólo se convierten en link las páginas del propio sitio.
     function format(text) {
         return escapeHtml(text)
             .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\[([^\]]+)\]\(\/?((?:inscripcion|index)\.html[^)\s]*)\)/g, '<a class="chat__link" href="/$2">$1</a>')
             .split(/\n+/)
             .map((line) => /^\s*[-*•]\s+/.test(line) ? `<li>${line.replace(/^\s*[-*•]\s+/, "")}</li>` : `<p>${line}</p>`)
             .join("")
@@ -105,6 +109,21 @@
         return typing;
     }
 
+    // Si la pregunta es para inscribirse y la respuesta no trae el link, lo agregamos
+    const SIGNUP_INTENT = /inscrib|anot(o|ar|arme)|registr|formulario|quiero (ir|participar|sumarme)/i;
+
+    function signupLink(question) {
+        const q = question.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+        const lab = typeof LABS !== "undefined" && LABS.find((l) =>
+            q.includes(l.id) || q.includes(l.name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()));
+        return lab ? `/inscripcion.html?lab=${lab.id}` : "/inscripcion.html";
+    }
+
+    function withSignupLink(question, reply) {
+        if (!SIGNUP_INTENT.test(question) || /\]\(\/?inscripcion\.html/.test(reply)) return reply;
+        return `${reply}\n¡Perfecto! Podés inscribirte [acá](${signupLink(question)})`;
+    }
+
     async function ask(question) {
         question = question.trim();
         if (!question) return;
@@ -126,7 +145,7 @@
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.reply) {
-                reply = data.reply;
+                reply = withSignupLink(question, data.reply);
                 history.push({ role: "assistant", content: reply });
             } else {
                 reply = ERRORS[data.error] || ERRORS.default;
@@ -146,9 +165,25 @@
 
     // ---------- Abrir / cerrar ----------
 
+    // En el celular el teclado achica la pantalla visible: el panel se ajusta a ese espacio
+    // (visualViewport) en vez de quedar tapado o empujado hacia arriba.
+    function syncViewport() {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        root.style.setProperty("--vv-height", `${vv.height}px`);
+        root.style.setProperty("--vv-top", `${vv.offsetTop}px`);
+        log.scrollTop = log.scrollHeight;
+    }
+    if (window.visualViewport) {
+        visualViewport.addEventListener("resize", () => { if (!panel.hidden) syncViewport(); });
+        visualViewport.addEventListener("scroll", () => { if (!panel.hidden) syncViewport(); });
+    }
+
     function setOpen(open) {
         panel.hidden = !open;
         root.classList.toggle("is-open", open);
+        document.documentElement.classList.toggle("chat-open", open);
+        if (open) syncViewport();
         toggle.setAttribute("aria-expanded", String(open));
         toggle.setAttribute("aria-label", open ? "Cerrar chat de ayuda" : "Abrir chat de ayuda");
         if (open) {
@@ -165,6 +200,7 @@
 
     toggle.addEventListener("click", () => setOpen(panel.hidden));
     $("[data-chat-close]").addEventListener("click", () => { setOpen(false); toggle.focus(); });
+    $("[data-chat-backdrop]").addEventListener("click", () => setOpen(false));
     $("[data-chat-dismiss]").addEventListener("click", hideBubble);
     bubble.addEventListener("click", (e) => { if (!e.target.closest("[data-chat-dismiss]")) setOpen(true); });
     $("[data-chat-chips]").addEventListener("click", (e) => {

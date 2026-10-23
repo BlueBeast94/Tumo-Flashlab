@@ -921,6 +921,20 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     font-family: var(--font);
 }
 
+/* Fondo oscuro detrás del chat abierto */
+.chat__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: rgba(17, 17, 17, 0.55);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.chat.is-open .chat__backdrop { opacity: 1; pointer-events: auto; }
+html.chat-open, html.chat-open body { overflow: hidden; }
+
 /* Robot */
 .bot { position: relative; display: inline-grid; justify-items: center; }
 .bot__antenna {
@@ -1084,6 +1098,18 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .chat__msg p + p, .chat__msg p + ul, .chat__msg ul + p { margin-top: 0.4em; }
 .chat__msg ul { padding-left: 1.1em; }
 .chat__msg--bot  { align-self: flex-start; background: var(--white); border-bottom-left-radius: 6px; }
+.chat__link {
+    display: inline-block;
+    margin: 0.15em 0.1em;
+    padding: 0.25em 0.9em;
+    border-radius: var(--radius);
+    background: var(--red);
+    color: var(--white);
+    font-weight: 800;
+    text-decoration: none;
+}
+.chat__link::after { content: " →"; }
+.chat__link:hover { background: var(--blue); }
 .chat__msg--user { align-self: flex-end; background: var(--blue); color: var(--white); border-bottom-right-radius: 6px; }
 
 .chat__typing { display: flex; gap: 5px; padding: 14px 16px; }
@@ -1130,7 +1156,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     border: 2px solid var(--light);
     border-radius: var(--radius);
     background: var(--light);
-    font: 500 0.95rem var(--font);
+    font: 500 16px var(--font); /* 16px evita el zoom automático de iOS al escribir */
 }
 .chat__form input:focus { outline: none; border-color: var(--blue); background: var(--white); }
 .chat__form button {
@@ -1158,7 +1184,19 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     .chat__fab { width: 52px; height: 52px; padding-top: 4px; }
     .chat__fab .bot { transform: scale(0.68); }
     .chat__bubble { max-width: 200px; font-size: 0.85rem; }
-    .chat__panel { height: calc(100vh - 110px); }
+    /* Panel a pantalla completa, ajustado al área visible sobre el teclado */
+    .chat__panel {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        top: calc(var(--vv-top, 0px) + 8px);
+        width: auto;
+        height: calc(var(--vv-height, 100dvh) - 16px);
+        border-radius: 22px;
+    }
+    .chat.is-open .chat__fab,
+    .chat.is-open .chat__bubble { display: none; }
+    .chat__log { overscroll-behavior: contain; }
 }
 
 /* ---------- Responsive ---------- */
