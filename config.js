@@ -51,3 +51,55 @@ async function apiCall(params, body, timeoutMs = 20000) {
 
 const escapeHtml = (text) => String(text ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---------- Días y horario como "calendario" ----------
+// Lee el texto de la columna Días de la planilla, por ejemplo:
+// "Jue 10, Vie 11, Mar 15 y Jue 17 de diciembre (Vie 18: cierre y recuperatorio)"
+// Lo que está entre paréntesis se muestra como día especial (borde punteado) con su nota.
+
+const DOW = { lun: "Lun", mar: "Mar", mie: "Mié", jue: "Jue", vie: "Vie", sab: "Sáb", dom: "Dom" };
+const plainText = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function parseDias(text) {
+    const [main, extra = ""] = String(text || "").split("(");
+    const re = /\b(lun|mar|mi[eé]|jue|vie|s[aá]b|dom)[a-záéíóú]*\.?\s+(\d{1,2})\b/gi;
+    const pick = (part, isExtra) => [...part.matchAll(re)].map((m) => ({
+        dow: DOW[plainText(m[1]).slice(0, 3)], num: m[2], extra: isExtra,
+    }));
+    const month = (plainText(main).match(/de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/) || [])[1];
+    const note = (extra.match(/:\s*([^)]+)/) || [])[1];
+    return { days: [...pick(main, false), ...pick(extra, true)], month: month || "", note: note ? note.trim() : "" };
+}
+
+const CLOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
+
+// size: "sm" (tarjetas, diálogo) | "md" (panel, formulario)
+function scheduleHtml(act, size = "md") {
+    const time = escapeHtml(String(act.horario || "").replace(/\s+a\s+/i, " – "));
+    const timeBadge = `<span class="sched__time">${CLOCK}${time}</span>`;
+    const { days, month, note } = parseDias(act.dias);
+    if (!days.length) {
+        return `<div class="sched sched--${size}">${timeBadge}<p class="sched__text">${escapeHtml(act.dias)}</p></div>`;
+    }
+    // En la versión chica no hay leyenda: el día especial lleva la primera palabra de su nota ("Cierre")
+    const shortNote = note ? capitalize(note.split(/\s+/)[0]).slice(0, 8) : "";
+    const tiles = days.map((d) => {
+        const label = d.extra && size === "sm" && shortNote ? shortNote : d.dow;
+        const title = d.extra && note ? ` title="${escapeHtml(capitalize(note))}"` : "";
+        return `<span class="day${d.extra ? " day--extra" : ""}"${title}><small>${escapeHtml(label)}</small><b>${d.num}</b></span>`;
+    }).join("");
+    if (size === "sm") {
+        return `<div class="sched sched--sm" role="group" aria-label="${escapeHtml(act.dias)}, ${time}">
+            ${timeBadge}<div class="sched__days">${tiles}</div></div>`;
+    }
+    const legend = [
+        month ? `<span>${capitalize(month)}</span>` : "",
+        note ? `<span><i class="day-key"></i>${escapeHtml(capitalize(note))}</span>` : "",
+    ].filter(Boolean).join("");
+    return `<div class="sched sched--${size}" role="group" aria-label="${escapeHtml(act.dias)}, ${time}">
+        ${timeBadge}
+        <div class="sched__days">${tiles}</div>
+        ${legend ? `<p class="sched__legend">${legend}</p>` : ""}
+    </div>`;
+}

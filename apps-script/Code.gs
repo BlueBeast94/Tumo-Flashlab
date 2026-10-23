@@ -177,13 +177,6 @@ const NO = ["no", "false", "0", "pendiente", "incompleto"];
 const isYes_ = (v) => v === true || YES.indexOf(norm_(v)) >= 0;
 const isNo_ = (v) => v === false || NO.indexOf(norm_(v)) >= 0;
 
-// Coincide si al menos un nombre y un apellido del 360 aparecen en lo que escribió el estudiante
-function nameMatches_(typed, student) {
-  const words = norm_(typed).split(" ").filter(Boolean);
-  const has = (field) => norm_(field).split(" ").filter(Boolean).some((w) => words.indexOf(w) >= 0);
-  return has(student["Nombre"]) && has(student["Apellido"]);
-}
-
 function fill_(text, vars) {
   return String(text).replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
 }
@@ -238,19 +231,20 @@ function publicActivities_() {
 // ==========================================================
 // Verificación (en tiempo real y antes de registrar)
 // ==========================================================
+// La identidad se valida sólo por DNI: el nombre se guarda como lo escribió el estudiante
+// (para que el equipo lo vea al lado del "Nombre 360"), pero no se compara.
 // Devuelve sólo códigos: nunca datos personales de otra persona.
 //   ok            → puede continuar (lugar: "vacante" | "espera")
 //   sin_verificar → no se pudo comprobar un requisito: se registra "En validación"
-//   dni_invalido | no_encontrado | no_coincide | activa | no_cumple | cerrada | actividad_invalida
+//   dni_invalido | no_encontrado | activa | no_cumple | cerrada | actividad_invalida
 
-function verify_(dni, actividadId, nombre) {
+function verify_(dni, actividadId) {
   dni = dni_(dni);
   if (!/^\d{7,8}$/.test(dni)) return { status: "dni_invalido" };
 
   const est = table_(TAB.EST);
   const student = est.rows.find((r) => dni_(r["DNI"]) === dni);
   if (!student) return { status: "no_encontrado" };
-  if (nombre && !nameMatches_(nombre, student)) return { status: "no_coincide" };
 
   const solicitudes = table_(TAB.SOL).rows;
   if (solicitudes.some((s) => dni_(s["DNI"]) === dni && ACTIVOS.indexOf(s["Estado"]) >= 0)) {
@@ -293,7 +287,7 @@ function register_(data) {
   if (!lock.tryLock(20000)) return { status: "ocupado" };
   try {
     // Se repite todo dentro del lock: evita duplicados y que dos personas tomen la última vacante
-    const r = verify_(data.dni, data.actividad, data.nombre);
+    const r = verify_(data.dni, data.actividad);
     if (r.status !== "ok" && r.status !== "sin_verificar") return publicVerify_(r);
 
     const estado = r.status === "sin_verificar" ? ESTADO.VALIDACION
@@ -351,7 +345,7 @@ function doGet(e) {
   if (!authorized_(p.key)) return json_({ status: "no_autorizado" });
   try {
     if (p.action === "actividades") return json_({ status: "ok", actividades: publicActivities_() });
-    if (p.action === "verificar") return json_(publicVerify_(verify_(p.dni, p.actividad, p.nombre)));
+    if (p.action === "verificar") return json_(publicVerify_(verify_(p.dni, p.actividad)));
     if (p.action === "estado") return json_(publicStatus_(p.dni));
     return json_({ status: "accion_invalida" });
   } catch (err) {

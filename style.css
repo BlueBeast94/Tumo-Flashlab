@@ -275,6 +275,62 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 }
 
 /* ---------- Actividades ---------- */
+/* Días y horario como calendario (tarjetas, panel, formulario y diálogo) */
+.sched { display: grid; gap: 0.6rem; justify-items: start; }
+.sched__time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    padding: 0.45em 0.95em 0.45em 0.75em;
+    border-radius: var(--radius);
+    background: var(--blue);
+    color: var(--white);
+    font-weight: 900;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+.sched__time svg { width: 1.1em; height: 1.1em; flex: none; }
+.sched__days { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.day {
+    display: grid;
+    justify-items: center;
+    gap: 0.15rem;
+    min-width: 3.1rem;
+    padding: 0.45rem 0.35rem 0.4rem;
+    border-radius: 14px;
+    background: var(--light);
+    border: 2px solid transparent;
+    line-height: 1;
+}
+.day small { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+.day b { font-size: 1.35rem; font-weight: 900; }
+.day--extra { background: transparent; border: 2px dashed currentColor; opacity: 0.75; }
+.sched__legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    opacity: 0.8;
+}
+.sched__legend span { display: inline-flex; align-items: center; gap: 0.4em; }
+.day-key { width: 0.9em; height: 0.9em; border: 2px dashed currentColor; border-radius: 4px; }
+.sched__text { font-weight: 700; }
+
+.sched--sm .sched__time { font-size: 1rem; }
+.sched--sm .sched__days { flex-wrap: nowrap; gap: 0.25rem; }
+.sched--sm .day { min-width: 2.25rem; padding: 0.32rem 0.2rem 0.28rem; border-radius: 10px; }
+.sched--sm .day b { font-size: 1rem; }
+.sched--sm .day small { font-size: 0.52rem; letter-spacing: 0.04em; }
+
+/* Sobre las tarjetas de color */
+.card .sched__time { background: var(--white); color: var(--ink); }
+.card .day { background: rgba(255, 255, 255, 0.16); }
+.card--yellow .day { background: rgba(0, 0, 0, 0.08); }
+.card--yellow .sched__time { background: var(--ink); color: var(--white); }
+
 /* Estados de inscripción (cartelera, panel y formulario) */
 .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.2rem; }
 .state {
@@ -336,20 +392,19 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-.card__facts {
-    list-style: none;
-    display: grid;
-    gap: 0.3rem;
-    margin-top: auto;
-    font-size: 0.88rem;
+.card .sched { margin-top: auto; padding-top: 0.2rem; }
+.card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 700;
 }
-.card__facts strong {
-    display: inline-block;
-    min-width: 6.2em;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    opacity: 0.75;
+.card__meta span {
+    padding: 0.25em 0.7em;
+    border-radius: var(--radius);
+    border: 1.5px solid currentColor;
+    opacity: 0.85;
 }
 
 /* Toda la tarjeta abre el panel; el botón de inscripción queda por encima */
@@ -495,6 +550,16 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .lab-panel__state .state { background: var(--light); }
 .lab-panel__few { color: var(--red); font-weight: 800; font-size: 0.9rem; }
 .lab-panel__cta[hidden] { display: none; }
+.lab-panel__when {
+    display: grid;
+    gap: 0.7rem;
+    margin-top: 1.4rem;
+    padding: 1.1rem 1.2rem;
+    border-radius: 22px;
+    border: 2px solid var(--light);
+}
+.lab-panel__when .info__label { color: var(--red); }
+.lab-panel__when .day { background: var(--light); }
 .lab-panel__facts {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -753,16 +818,9 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .chosen__change { font-weight: 800; color: var(--blue); }
 .chosen h2 { margin-top: 0.4rem; font-size: clamp(1.8rem, 5vw, 2.4rem); }
 .chosen__meta { margin-top: 0.3rem; color: var(--muted); font-weight: 600; }
-.chosen__facts {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 0.6rem;
-    margin-top: 1.2rem;
-}
-.chosen__facts div { padding: 0.8rem 1rem; border-radius: 18px; background: var(--light); }
-.chosen__facts div:last-child { grid-column: 1 / -1; }
-.chosen__facts dt { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-.chosen__facts dd { font-weight: 700; }
+.chosen__sched { margin-top: 1.2rem; }
+.chosen__req { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+.chosen__req span { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .chosen__waitlist {
     margin-top: 1rem;
     padding: 0.8rem 1rem;
@@ -833,7 +891,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .confirm::backdrop { background: rgba(17, 17, 17, 0.6); backdrop-filter: blur(3px); }
 .confirm h2 { font-size: clamp(1.5rem, 5vw, 1.9rem); line-height: 1.15; }
 .confirm h2 span { color: var(--blue); }
-.confirm__meta { margin-top: 0.8rem; font-weight: 700; }
+.confirm__meta { margin-top: 1rem; }
 .confirm__note { margin-top: 1rem; color: var(--muted); }
 .confirm__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.6rem; }
 @media (max-width: 560px) { .confirm__actions .btn { flex: 1 1 100%; } }
@@ -1300,7 +1358,7 @@ html.chat-open, html.chat-open body { overflow: hidden; }
 }
 
 @media (max-width: 560px) {
-    .cards, .steps, .info-grid, .fields, .lab-panel__facts, .chosen__facts { grid-template-columns: 1fr; }
+    .cards, .steps, .info-grid, .fields, .lab-panel__facts { grid-template-columns: 1fr; }
     .info--wide, .field--wide { grid-column: auto; }
     .lab-panel__media { height: 180px; }
     .signup__submit .btn { width: 100%; }

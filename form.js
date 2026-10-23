@@ -37,7 +37,7 @@ function showMessage(text, actions = [TO_CARTELERA]) {
 }
 
 const actName = () => `<strong>${escapeHtml(act.nombre)}</strong> (grupo ${escapeHtml(act.grupo)})`;
-const actWhen = () => `${escapeHtml(act.dias)}, ${escapeHtml(act.horario)}`;
+const actWhen = () => `de ${escapeHtml(act.horario)}`; // los días se ven en el calendario de arriba
 
 // ---------- Carga de la actividad ----------
 
@@ -73,8 +73,7 @@ function fillChosen() {
     document.title = `${act.nombre} · Solicitar vacante · TUMO Barracas`;
     $("[data-chosen-name]").textContent = act.nombre;
     $("[data-chosen-meta]").textContent = `${act.tipo} · Grupo ${act.grupo}`;
-    $("[data-chosen-dias]").textContent = act.dias;
-    $("[data-chosen-horario]").textContent = act.horario;
+    $("[data-chosen-sched]").innerHTML = scheduleHtml(act, "md");
     $("[data-chosen-requisito]").textContent = act.requisito || "Sin requisitos previos";
     $("[data-chosen-waitlist]").hidden = !espera;
     $("[data-confirm-text]").innerHTML =
@@ -85,7 +84,7 @@ function fillChosen() {
 function openConfirm() {
     const dialog = $("[data-confirm]");
     $("[data-confirm-name]").textContent = `${act.nombre} (grupo ${act.grupo})`;
-    $("[data-confirm-meta]").textContent = `${act.dias} · ${act.horario}`;
+    $("[data-confirm-meta]").innerHTML = scheduleHtml(act, "sm");
     $("[data-confirm-waitlist]").hidden = act.estado !== "espera";
     dialog.addEventListener("cancel", (e) => e.preventDefault()); // hay que elegir una de las dos opciones
     $("[data-confirm-yes]").addEventListener("click", () => {
@@ -152,7 +151,6 @@ async function runVerify(dni) {
     verify.result = r;
     verify.dni = dni;
     setVerify(...verifyMessage(r));
-    if (r.status === "ok" || r.status === "sin_verificar") checkName();
 }
 
 dniInput.addEventListener("input", () => {
@@ -161,10 +159,6 @@ dniInput.addEventListener("input", () => {
     clearTimeout(verify.timer);
     verify.seq++; // descarta cualquier verificación en curso
     verify.result = null;
-    nameCheck.seq++; // y la del nombre, que dependía del DNI anterior
-    nameCheck.checked = "";
-    nameCheck.result = "";
-    setNameHint("", "");
 
     if (dni.length < 7) {
         setVerify("idle", dni.length ? "El DNI tiene 7 u 8 números." : DNI_HINT);
@@ -178,9 +172,8 @@ $("[data-verify]").addEventListener("click", (e) => {
     if (e.target.closest("[data-retry]")) runVerify(dniInput.value);
 });
 
-// ---------- Nombre: se compara con el registrado para ese DNI ----------
+// ---------- Nombre: sólo se pide (no se compara con el 360) ----------
 
-const nameCheck = { seq: 0, checked: "", result: "" };
 const nameWords = () => nameInput.value.trim().split(/\s+/).filter(Boolean);
 
 function setNameHint(state, text) {
@@ -190,35 +183,7 @@ function setNameHint(state, text) {
     $("[data-field='nombre']").classList.toggle("is-invalid", state === "error");
 }
 
-async function checkName() {
-    const typed = nameInput.value.trim();
-    const verified = verify.result && ["ok", "sin_verificar"].includes(verify.result.status);
-    if (!verified || nameWords().length < 2 || typed === nameCheck.checked) return;
-
-    const seq = ++nameCheck.seq;
-    setNameHint("checking", "Revisando el nombre…");
-    const r = await apiCall({ action: "verificar", dni: verify.dni, actividad: act.id, nombre: typed });
-    if (seq !== nameCheck.seq) return;
-
-    nameCheck.checked = typed;
-    nameCheck.result = r.status;
-    if (r.status === "no_coincide") {
-        setNameHint("error", "El nombre no coincide con el registrado para este DNI. Escribilo como figura en TUMO.");
-    } else if (r.status === "ok" || r.status === "sin_verificar") {
-        setNameHint("ok", "Nombre verificado.");
-    } else {
-        setNameHint("", ""); // otros problemas ya se muestran en el DNI; se revisa todo al enviar
-        nameCheck.checked = "";
-    }
-}
-
-nameInput.addEventListener("input", () => {
-    nameCheck.seq++;
-    nameCheck.checked = "";
-    nameCheck.result = "";
-    setNameHint("", "");
-});
-nameInput.addEventListener("blur", checkName);
+nameInput.addEventListener("input", () => setNameHint("", ""));
 
 // ---------- Envío (confirmación 3) ----------
 
@@ -240,7 +205,6 @@ form.addEventListener("submit", async (e) => {
         nameInput.focus();
         return formError("Revisá tu nombre y apellido.");
     }
-    if (nameCheck.result === "no_coincide") return formError("El nombre no coincide con el registrado para este DNI.");
     const r = verify.result;
     if (!r || verify.dni !== dniInput.value) {
         if (dniInput.value.length < 7) setVerify("error", "Escribí tu DNI (7 u 8 números).");
@@ -270,10 +234,6 @@ form.addEventListener("submit", async (e) => {
 
     if (result.status === "ok") return showDone(result);
 
-    if (result.status === "no_coincide") {
-        setNameHint("error", "El nombre no coincide con el registrado para este DNI. Escribilo como figura en TUMO.");
-        return formError("El nombre no coincide con el registrado para este DNI.");
-    }
     if (result.status === "activa") {
         return formError("Este documento ya tiene una solicitud activa. Si recién la enviaste, ya quedó registrada: " +
             '<a href="#estado">consultá su estado</a>.');

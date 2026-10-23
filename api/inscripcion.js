@@ -2,7 +2,7 @@
 // TUMO Barracas FlashLabs — puente entre la web y la planilla (Vercel Serverless Function)
 //
 // GET  /api/inscripcion?action=actividades
-// GET  /api/inscripcion?action=verificar&dni=…&actividad=…[&nombre=…]
+// GET  /api/inscripcion?action=verificar&dni=…&actividad=…
 // GET  /api/inscripcion?action=estado&dni=…
 // POST /api/inscripcion  { action: "solicitud", dni, nombre, actividad, confirmado: true }
 //
@@ -61,10 +61,7 @@ module.exports = async function handler(req, res) {
 
         const params = { action };
         if (action !== "actividades") params.dni = digits(url.searchParams.get("dni"));
-        if (action === "verificar") {
-            params.actividad = clean(url.searchParams.get("actividad"), 40);
-            if (url.searchParams.get("nombre")) params.nombre = clean(url.searchParams.get("nombre"));
-        }
+        if (action === "verificar") params.actividad = clean(url.searchParams.get("actividad"), 40);
         const data = await callAppsScript(params);
         const cache = action === "actividades" && data.status === "ok"
             ? { "Cache-Control": "s-maxage=20, stale-while-revalidate=60" }

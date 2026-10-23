@@ -47,11 +47,8 @@
                 </div>
                 <h2 data-chosen-name></h2>
                 <p class="chosen__meta" data-chosen-meta></p>
-                <dl class="chosen__facts">
-                    <div><dt>Días</dt><dd data-chosen-dias></dd></div>
-                    <div><dt>Horario</dt><dd data-chosen-horario></dd></div>
-                    <div><dt>Requisitos</dt><dd data-chosen-requisito></dd></div>
-                </dl>
+                <div class="chosen__sched" data-chosen-sched></div>
+                <p class="chosen__req"><span>Requisitos</span> <b data-chosen-requisito></b></p>
                 <p class="chosen__waitlist" data-chosen-waitlist hidden>
                     No quedan vacantes en este grupo: tu solicitud va a entrar en <strong>lista de espera</strong>.
                 </p>
@@ -63,7 +60,7 @@
                 <div class="fields">
                     <label class="field field--wide" data-field="nombre">
                         <span>Nombre y apellido</span>
-                        <input name="nombre" required autocomplete="name" placeholder="Como figura en TUMO">
+                        <input name="nombre" required autocomplete="name" placeholder="Ej.: Martina Gómez">
                         <span class="field__hint" data-hint="nombre"></span>
                     </label>
                     <label class="field field--wide" data-field="dni">
@@ -120,7 +117,7 @@
     <dialog class="confirm" data-confirm aria-labelledby="confirm-title">
         <p class="kicker">Confirmá tu elección</p>
         <h2 id="confirm-title">¿Querés solicitar una vacante en <span data-confirm-name></span>?</h2>
-        <p class="confirm__meta" data-confirm-meta></p>
+        <div class="confirm__meta" data-confirm-meta></div>
         <p class="chosen__waitlist" data-confirm-waitlist hidden>No quedan vacantes: vas a entrar en lista de espera.</p>
         <p class="confirm__note">Podés solicitar vacante en <strong>una sola actividad</strong> de diciembre.</p>
         <div class="confirm__actions">

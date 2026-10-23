@@ -86,11 +86,11 @@ function renderCards() {
                 <button class="card__open" data-open-lab="${escapeHtml(act.id)}" aria-haspopup="dialog">${escapeHtml(act.nombre)}</button>
             </h3>
             <p class="card__desc">${escapeHtml(act.descripcion || "Tocá para ver el detalle de la actividad.")}</p>
-            <ul class="card__facts">
-                <li><strong>Horario</strong> ${escapeHtml(act.horario)}</li>
-                <li><strong>Capacidad</strong> ${act.capacidad} vacantes</li>
-                <li><strong>Requisitos</strong> ${escapeHtml(requisitoText(act))}</li>
-            </ul>
+            ${scheduleHtml(act, "sm")}
+            <p class="card__meta">
+                <span>${act.capacidad} vacantes</span>
+                <span>${escapeHtml(act.requisito ? `Requisito: ${act.requisito}` : "Sin requisitos previos")}</span>
+            </p>
             <span class="card__more" aria-hidden="true">Ver detalle +</span>
             ${signupButton(act)}
         </article>`).join("");
@@ -155,8 +155,7 @@ function openPanel(id) {
     $("[data-lab-state]").innerHTML = stateBadge(act.estado) +
         (pocas ? ` <span class="lab-panel__few">¡Quedan pocas vacantes!</span>` : "");
     $("[data-lab-intro]").textContent = act.descripcion || "Pronto vamos a publicar la descripción completa de esta actividad.";
-    $("[data-lab-dias]").textContent = act.dias;
-    $("[data-lab-horario]").textContent = act.horario;
+    $("[data-lab-sched]").innerHTML = scheduleHtml(act, "md");
     $("[data-lab-capacidad]").textContent = `${act.capacidad} vacantes`;
     $("[data-lab-requisito]").textContent = requisitoText(act);
 
