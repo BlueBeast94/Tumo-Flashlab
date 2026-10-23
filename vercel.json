@@ -3,6 +3,9 @@
     "api/chat.js": {
       "includeFiles": "config.js",
       "maxDuration": 20
+    },
+    "api/inscripcion.js": {
+      "maxDuration": 20
     }
   }
 }

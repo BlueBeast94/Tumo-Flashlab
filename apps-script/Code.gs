@@ -1,301 +1,580 @@
 // ==========================================================
-// TUMO Flash Lab — backend en Google Apps Script
+// TUMO Barracas — FlashLabs diciembre 2026
+// Back de inscripciones en Google Sheets + Apps Script
+//
 // Pegar en: Planilla > Extensiones > Apps Script
-// Ver SETUP.md para los pasos de instalación.
+// Primera vez: ejecutar setup() (o menú FlashLabs > Configurar planilla).
+// Ver SETUP.md para los pasos completos.
 // ==========================================================
 
-const EVENT = {
-  NAME: "TUMO Flash Lab",
-  CAPACITY: 20,               // lugares por lab y por turno
-  CONFIRM_HOURS: 48,          // tiempo para confirmar antes de perder el lugar
-  REMINDER_HOURS: 24,         // recordatorio si todavía no confirmó
-  DATE: "sábado 13 de diciembre",
-  PLACE: "TUMO Buenos Aires — dirección a confirmar",
-  START: new Date("2026-12-13T10:00:00-03:00"),
+const TAB = {
+  ACT: "Actividades",
+  EST: "Estudiantes",
+  SOL: "Solicitudes",
+  HIS: "Historial",
+  MSG: "Mensajes",
+  CFG: "Config",
+  RES: "Resumen",
 };
 
-// Deben coincidir con LABS y TURNOS de config.js
-const LABS = {
-  programacion: "Programación",
-  videojuegos: "Game Development",
-  animacion: "Animación",
-  robotica: "Robótica",
-};
-const TURNOS = {
-  TM: "Turno mañana (10:00 a 13:00)",
-  TT: "Turno tarde (14:00 a 17:00)",
+// El código busca las columnas por nombre: se pueden reordenar o agregar columnas nuevas.
+const HEADERS = {
+  Actividades: ["ID", "Actividad", "Tipo", "Grupo", "Habilitado", "Inscripción", "Días", "Horario",
+    "Capacidad", "Requisito", "Columna requisito", "Descripción", "Imagen", "Docentes"],
+  Estudiantes: ["DNI", "TUMO ID", "Nombre", "Apellido", "Email", "Teléfono", "Cursos completados", "Nivel"],
+  Solicitudes: ["ID", "Fecha", "DNI", "TUMO ID", "Nombre ingresado", "Nombre 360", "Email", "Actividad ID",
+    "Actividad", "Grupo", "Estado", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas"],
+  Historial: ["Fecha", "Usuario", "Solicitud", "DNI", "Antes", "Después", "Detalle"],
+  Mensajes: ["Clave", "Asunto", "Cuerpo"],
+  Config: ["Clave", "Valor", "Descripción"],
 };
 
-const SHEET_NAME = "Inscripciones";
-const HEADERS = [
-  "Fecha", "Lab", "Turno", "Documento", "Nombre", "Apellido", "Email estudiante",
-  "Nombre responsable", "Apellido responsable", "Email responsable",
-  "Estado", "Token", "Confirmado el", "Mails enviados",
+const ESTADO = {
+  RECIBIDA: "Recibida",
+  VALIDACION: "En validación",
+  PENDIENTE: "Pendiente de confirmación",
+  CONFIRMADA: "Confirmada",
+  ESPERA: "Lista de espera",
+  OFRECIDA: "Vacante ofrecida",
+  CANCELADA: "Cancelada",
+  NO_ELEGIBLE: "No elegible",
+  FINALIZADA: "Finalizada",
+};
+const ESTADOS = Object.keys(ESTADO).map((k) => ESTADO[k]);
+// Una solicitud "activa" impide pedir otra actividad
+const ACTIVOS = [ESTADO.RECIBIDA, ESTADO.VALIDACION, ESTADO.PENDIENTE, ESTADO.CONFIRMADA, ESTADO.ESPERA, ESTADO.OFRECIDA];
+// Estas ocupan lugar: cuando suman la capacidad, las nuevas solicitudes van a lista de espera
+const OCUPAN = [ESTADO.PENDIENTE, ESTADO.CONFIRMADA, ESTADO.OFRECIDA];
+
+// Lo que ve el estudiante para cada estado interno
+const ESTADO_PUBLICO = {
+  "Recibida": "Recibimos tu solicitud",
+  "En validación": "Estamos validando tus datos",
+  "Pendiente de confirmación": "Estamos revisando tu vacante",
+  "Confirmada": "¡Tenés tu vacante confirmada!",
+  "Lista de espera": "Estás en lista de espera",
+  "Vacante ofrecida": "¡Se liberó una vacante para vos! Revisá tu mail",
+  "Cancelada": "Tu solicitud fue cancelada",
+  "No elegible": "Tu solicitud no cumple los requisitos",
+  "Finalizada": "La actividad finalizó",
+};
+
+// ---------- Datos iniciales (de "Cronograma FlashLabs") ----------
+
+const DIAS_DICIEMBRE = "Jue 10, Vie 11, Mar 15 y Jue 17 de diciembre (Vie 18: cierre y recuperatorio)";
+
+const SEED_ACTIVIDADES = [
+  // id base, nombre, docentes, horario grupo A, horario grupo B (vacío = sin grupo B)
+  ["musica-cine", "Composición de Música para Cine", "Mati C", "9:00 a 11:00", "14:00 a 16:00"],
+  ["tumogotchi", "TumoGotchi", "Santi", "9:00 a 11:00", "14:00 a 16:00"],
+  ["animacion-gifs", "Animación de gifs", "Oli", "9:00 a 11:00", "14:00 a 16:00"],
+  ["juego-cartas", "Creación juego de cartas", "Mati G, Agos, Gero", "9:00 a 11:00", "14:00 a 16:00"],
+  ["carreras-iot", "Carreras con IOT", "Elu", "9:00 a 11:00", "14:00 a 16:00"],
+  ["sonido-codigo", "Del Sonido al Código", "Guido, Palo", "14:00 a 16:00", "17:00 a 19:00"],
+  ["personajes-ia-3d", "Personajes IA en 3D", "Emi, Tade", "14:00 a 16:00", "17:00 a 19:00"],
+  ["tumo-tank", "TUMO TANK", "Chichi, Marcos, Marian, Mati C", "17:00 a 19:00", ""],
 ];
 
-const STATUS = {
-  REGISTERED: "registered",   // se inscribió, falta confirmar
-  CONFIRMED: "confirmed",     // confirmó y está dentro del cupo
-  WAITLIST: "waitlist",       // confirmó pero el cupo estaba lleno
-  EXPIRED: "expired",         // no confirmó a tiempo
-  CANCELLED: "cancelled",     // se dio de baja (se marca a mano)
-};
-const ACTIVE = [STATUS.REGISTERED, STATUS.CONFIRMED, STATUS.WAITLIST];
+const SEED_CONFIG = [
+  ["Inscripción abierta", "SÍ", "SÍ / NO. Abre o cierra todas las inscripciones a la vez."],
+  ["Capacidad por grupo", 20, "Valor por defecto al crear actividades (cada grupo se puede cambiar en Actividades)."],
+  ["Modo prueba: enviar todos los mails a", "", "Si tiene un mail, TODOS los mails van ahí en lugar de al estudiante. Vaciar para producción."],
+  ["Plazo invitación (horas)", 48, "Tiempo para aceptar una vacante ofrecida desde la lista de espera."],
+  ["Contacto", "", "Mail o teléfono que se muestra cuando algo no se puede resolver en la web."],
+];
 
-// ---------- Acceso a la planilla ----------
+const SEED_MENSAJES = [
+  ["RECEPCION", "Recibimos tu solicitud para {actividad}",
+    "¡Hola {nombre}!\n\nRecibimos tu solicitud para {actividad} (grupo {grupo}).\n{dias}, {horario}.\n\n" +
+    "Importante: tu vacante todavía NO está confirmada. Pronto nos vamos a contactar con vos.\n\n¡Gracias!\nTUMO Barracas"],
+  ["CONFIRMADA", "¡Tu vacante en {actividad} está confirmada!",
+    "¡Hola {nombre}!\n\nTu vacante en {actividad} (grupo {grupo}) está confirmada.\n\n" +
+    "Días: {dias}\nHorario: {horario}\nLugar: TUMO Barracas\n\nEs importante asistir a todas las sesiones.\n\n¡Te esperamos!\nTUMO Barracas"],
+  ["ESPERA", "Estás en lista de espera para {actividad}",
+    "¡Hola {nombre}!\n\nPor ahora no hay vacantes en {actividad} (grupo {grupo}), así que quedaste en lista de espera.\n" +
+    "Todavía no tenés una vacante. Si se libera una, te vamos a escribir a este mail.\n\nTUMO Barracas"],
+  ["CANCELADA", "Tu solicitud para {actividad} fue cancelada",
+    "¡Hola {nombre}!\n\nTu solicitud para {actividad} (grupo {grupo}) fue cancelada.\n" +
+    "Si creés que es un error, escribinos a {contacto}.\n\nTUMO Barracas"],
+  ["NO_ELEGIBLE", "Sobre tu solicitud para {actividad}",
+    "¡Hola {nombre}!\n\nRevisamos tu solicitud para {actividad} y no cumple los requisitos de la actividad.\n" +
+    "Si tenés dudas, escribinos a {contacto}.\n\nTUMO Barracas"],
+];
 
-function sheet_() {
-  const ss = SpreadsheetApp.getActive();
-  let sh = ss.getSheetByName(SHEET_NAME);
-  if (!sh) {
-    sh = ss.insertSheet(SHEET_NAME);
-    sh.appendRow(HEADERS);
-    sh.setFrozenRows(1);
-    sh.getRange("D:D").setNumberFormat("@"); // el DNI como texto
-  }
-  return sh;
-}
+const SEED_ESTUDIANTES_PRUEBA = [
+  // DNI, TUMO ID, Nombre, Apellido, Email, Teléfono, Cursos completados, Nivel, Programación completada
+  ["40000001", "T-0001", "Martina", "Gómez", "martina@example.com", "1100000001", "Animación 1", 1, "SÍ"],
+  ["40000002", "T-0002", "Tomás", "Rodríguez", "tomas@example.com", "1100000002", "Programación 1, Programación 2", 2, "SÍ"],
+  ["40000003", "T-0003", "Lucía", "Pérez", "lucia@example.com", "1100000003", "", 1, "NO"],
+  ["40000004", "T-0004", "Benjamín", "Sosa", "benja@example.com", "1100000004", "Música 1", 1, ""],
+  ["40000005", "T-0005", "Sofía", "López", "", "1100000005", "Robótica 1", 2, "SÍ"],
+];
 
-function rows_() {
-  const values = sheet_().getDataRange().getValues();
-  values.shift();
-  return values.map((v, i) => {
+// ==========================================================
+// Acceso a la planilla
+// ==========================================================
+
+function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
+
+function table_(name) {
+  const sh = ss_().getSheetByName(name);
+  if (!sh) throw new Error("Falta la pestaña " + name + ". Ejecutá setup().");
+  const values = sh.getDataRange().getValues();
+  const headers = values.shift().map((h) => String(h).trim());
+  const rows = values.map((v, i) => {
     const row = { _row: i + 2 };
-    HEADERS.forEach((h, j) => { row[h] = v[j]; });
+    headers.forEach((h, j) => { row[h] = v[j]; });
     return row;
   });
+  return { sh: sh, headers: headers, rows: rows };
 }
 
-function update_(row, changes) {
-  const sh = sheet_();
+function setCells_(t, row, changes) {
   Object.keys(changes).forEach((key) => {
-    sh.getRange(row._row, HEADERS.indexOf(key) + 1).setValue(changes[key]);
+    const col = t.headers.indexOf(key);
+    if (col < 0) throw new Error("Falta la columna " + key + " en " + t.sh.getName());
+    t.sh.getRange(row._row, col + 1).setValue(changes[key]);
     row[key] = changes[key];
   });
 }
 
-const normDni_ = (v) => String(v).replace(/\D/g, "");
-const clean_ = (v) => String(v || "").trim();
-const sameSlot_ = (a, b) => a["Lab"] === b["Lab"] && a["Turno"] === b["Turno"];
-
-function logMail_(row, kind) {
-  const sent = row["Mails enviados"] ? row["Mails enviados"] + ", " : "";
-  update_(row, { "Mails enviados": sent + kind });
-}
-const wasSent_ = (row, kind) => String(row["Mails enviados"] || "").split(", ").includes(kind);
-
-// ---------- 1. Nueva inscripción (POST desde inscripcion.html) ----------
-
-function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  if (data.action !== "register") return json_({ status: "error" });
-
-  const dni = normDni_(data.documento);
-  const valid = LABS[data.lab] && TURNOS[data.turno] && /^\d{7,8}$/.test(dni) &&
-    clean_(data.nombre) && clean_(data.apellido) && clean_(data.email) &&
-    clean_(data.respNombre) && clean_(data.respApellido) && clean_(data.respEmail);
-  if (!valid) return json_({ status: "error" });
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    // Un participante = un documento. Un padre puede anotar a varios hijos con su mail,
-    // pero nadie puede ocupar dos lugares ni anotarse en otro lab.
-    const existing = rows_().find((r) => normDni_(r["Documento"]) === dni && ACTIVE.includes(r["Estado"]));
-    if (existing) return json_({ status: "duplicate" });
-
-    sheet_().appendRow([
-      new Date(), data.lab, data.turno, dni,
-      clean_(data.nombre), clean_(data.apellido), clean_(data.email).toLowerCase(),
-      clean_(data.respNombre), clean_(data.respApellido), clean_(data.respEmail).toLowerCase(),
-      STATUS.REGISTERED, Utilities.getUuid(), "", "",
-    ]);
-    const row = rows_().pop();
-    sendMail_(row, "registered");
-    return json_({ status: "ok" });
-  } finally {
-    lock.releaseLock();
-  }
+function append_(t, obj) {
+  t.sh.appendRow(t.headers.map((h) => (obj[h] === undefined ? "" : obj[h])));
 }
 
-// ---------- 2 y 3. Confirmación y consulta de estado (GET) ----------
-
-function doGet(e) {
-  const action = e.parameter.action;
-  if (action === "confirm") return confirm_(e.parameter.token);
-  if (action === "status") return json_({ status: statusFor_(e.parameter.dni) });
-  return json_({ error: "unknown action" });
-}
-
-function confirm_(token) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    const all = rows_();
-    const row = all.find((r) => r["Token"] === token);
-    if (!row) return page_("Link inválido", "No encontramos esta inscripción.");
-    if (row["Estado"] === STATUS.EXPIRED) return page_("Se venció el plazo", "No confirmaste a tiempo y el lugar se liberó.");
-    if (row["Estado"] !== STATUS.REGISTERED) return page_("Ya confirmaste", "Tu estado actual: " + label_(row["Estado"]));
-
-    const taken = all.filter((r) => r["Estado"] === STATUS.CONFIRMED && sameSlot_(r, row)).length;
-    const status = taken < EVENT.CAPACITY ? STATUS.CONFIRMED : STATUS.WAITLIST;
-    update_(row, { "Estado": status, "Confirmado el": new Date() });
-    sendMail_(row, status);
-
-    return status === STATUS.CONFIRMED
-      ? page_("¡Lugar asegurado!", "Estás dentro de los " + EVENT.CAPACITY + " confirmados. Te mandamos los detalles por mail.")
-      : page_("Estás en lista de espera", "El cupo de este turno ya se completó. Si se libera un lugar te avisamos por mail.");
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-// Sólo devuelve una palabra de estado, nunca datos personales
-function statusFor_(dni) {
-  const mine = rows_().filter((r) => normDni_(r["Documento"]) === normDni_(dni)).map((r) => r["Estado"]);
-  const order = [STATUS.CONFIRMED, STATUS.WAITLIST, STATUS.REGISTERED, STATUS.EXPIRED];
-  return order.find((s) => mine.includes(s)) || "not_found";
-}
-
-// ---------- 4. Tarea horaria: recordatorios, vencimientos, lista de espera ----------
-
-function hourlyJob() {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    const now = new Date();
-    const all = rows_();
-
-    all.filter((r) => r["Estado"] === STATUS.REGISTERED).forEach((r) => {
-      const hours = (now - new Date(r["Fecha"])) / 36e5;
-      if (hours >= EVENT.CONFIRM_HOURS) {
-        update_(r, { "Estado": STATUS.EXPIRED });
-        sendMail_(r, "expired");
-      } else if (hours >= EVENT.REMINDER_HOURS && !wasSent_(r, "reminder")) {
-        sendMail_(r, "reminder");
-      }
-    });
-
-    // Si alguien se dio de baja, el primero de la lista de espera de ese lab/turno sube
-    const waiting = all.filter((r) => r["Estado"] === STATUS.WAITLIST)
-      .sort((a, b) => new Date(a["Confirmado el"]) - new Date(b["Confirmado el"]));
-    waiting.forEach((r) => {
-      const taken = all.filter((x) => x["Estado"] === STATUS.CONFIRMED && sameSlot_(x, r)).length;
-      if (taken < EVENT.CAPACITY) {
-        update_(r, { "Estado": STATUS.CONFIRMED });
-        sendMail_(r, "promoted");
-      }
-    });
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-// ---------- 5. Tarea diaria: recordatorio del evento ----------
-
-function dailyJob() {
-  const daysLeft = Math.ceil((EVENT.START - new Date()) / 864e5);
-  if (daysLeft !== 2 && daysLeft !== 0) return;
-  const kind = daysLeft === 2 ? "event_soon" : "event_today";
-  rows_()
-    .filter((r) => r["Estado"] === STATUS.CONFIRMED && !wasSent_(r, kind))
-    .forEach((r) => sendMail_(r, kind));
-}
-
-// ---------- Mails (van al estudiante y al responsable) ----------
-
-function sendMail_(row, kind) {
-  const name = row["Nombre"];
-  const lab = "<b>" + LABS[row["Lab"]] + "</b> · " + TURNOS[row["Turno"]];
-  const confirmUrl = ScriptApp.getService().getUrl() + "?action=confirm&token=" + row["Token"];
-  const when = "<b>Cuándo:</b> " + EVENT.DATE + ", " + TURNOS[row["Turno"]] + "<br><b>Dónde:</b> " + EVENT.PLACE;
-
-  const templates = {
-    registered: ["Recibimos tu inscripción", [
-      "¡Hola! Recibimos la inscripción de " + name + " a " + lab + ".",
-      "Para reservar el lugar, confirmá dentro de las próximas " + EVENT.CONFIRM_HOURS + " horas:",
-      button_("Confirmar asistencia", confirmUrl),
-    ]],
-    reminder: ["Recordá confirmar tu lugar", [
-      "Todavía no confirmaste la asistencia de " + name + " a " + lab + ". Si no confirmás, el lugar se libera.",
-      button_("Confirmar ahora", confirmUrl),
-    ]],
-    confirmed: ["¡Lugar asegurado!", [
-      name + " está dentro de los " + EVENT.CAPACITY + " confirmados para " + lab + ".",
-      when,
-    ]],
-    waitlist: ["Estás en lista de espera", [
-      "Gracias por confirmar. El cupo de " + lab + " ya se completó, así que " + name + " quedó en lista de espera.",
-      "Si se libera un lugar te avisamos por este medio.",
-    ]],
-    promoted: ["¡Se liberó un lugar para vos!", [
-      "Se liberó un lugar y " + name + " ya está confirmado/a para " + lab + ".",
-      when,
-    ]],
-    expired: ["Se liberó tu lugar", [
-      "No recibimos la confirmación de " + name + " a tiempo, así que el lugar pasó a la siguiente persona.",
-      "¡Te esperamos en el próximo Flash Lab!",
-    ]],
-    event_soon: ["Faltan 2 días para el Flash Lab", [
-      "¡Ya casi! Te esperamos en " + lab + ".",
-      when,
-      "Si sos menor, traé la autorización firmada por tu adulto responsable.",
-    ]],
-    event_today: ["¡Hoy es el Flash Lab!", [
-      "Te esperamos hoy.",
-      when,
-    ]],
-  };
-
-  const [subject, lines] = templates[kind];
-  MailApp.sendEmail({
-    to: [row["Email estudiante"], row["Email responsable"]].filter(String).join(","),
-    subject: EVENT.NAME + " · " + subject,
-    htmlBody: layout_(subject, lines),
-    name: "TUMO Buenos Aires",
-  });
-  logMail_(row, kind);
-}
-
-function layout_(title, lines) {
-  return '<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111">' +
-    '<div style="background:#2730e7;color:#fff;padding:24px;border-radius:20px 20px 0 0">' +
-    '<div style="font-weight:900;font-size:22px">TUMO <span style="font-size:11px">BUENOS AIRES</span></div>' +
-    '<h1 style="margin:16px 0 0;font-size:26px">' + title + "</h1></div>" +
-    '<div style="background:#f2f2f2;padding:24px;border-radius:0 0 20px 20px;font-size:16px;line-height:1.5">' +
-    lines.map((l) => "<p>" + l + "</p>").join("") + "</div></div>";
-}
-
-function button_(text, url) {
-  return '<a href="' + url + '" style="display:inline-block;background:#e75227;color:#fff;padding:14px 28px;' +
-    'border-radius:999px;text-decoration:none;font-weight:bold">' + text + "</a>";
+function config_() {
+  const cfg = {};
+  table_(TAB.CFG).rows.forEach((r) => { cfg[String(r["Clave"]).trim()] = r["Valor"]; });
+  return cfg;
 }
 
 // ---------- Utilidades ----------
 
-function label_(status) {
+const norm_ = (v) => String(v === undefined || v === null ? "" : v)
+  .normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const dni_ = (v) => String(v === undefined || v === null ? "" : v).replace(/\D/g, "");
+const YES = ["si", "yes", "true", "x", "1", "ok", "completado", "completada", "completo", "aprobado"];
+const NO = ["no", "false", "0", "pendiente", "incompleto"];
+const isYes_ = (v) => v === true || YES.indexOf(norm_(v)) >= 0;
+const isNo_ = (v) => v === false || NO.indexOf(norm_(v)) >= 0;
+
+// Coincide si al menos un nombre y un apellido del 360 aparecen en lo que escribió el estudiante
+function nameMatches_(typed, student) {
+  const words = norm_(typed).split(" ").filter(Boolean);
+  const has = (field) => norm_(field).split(" ").filter(Boolean).some((w) => words.indexOf(w) >= 0);
+  return has(student["Nombre"]) && has(student["Apellido"]);
+}
+
+function fill_(text, vars) {
+  return String(text).replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+}
+
+// ==========================================================
+// Cartelera y disponibilidad
+// ==========================================================
+
+function availability_(act, solicitudes, cfg) {
+  const mine = solicitudes.filter((s) => s["Actividad ID"] === act["ID"]);
+  const count = (estados) => mine.filter((s) => estados.indexOf(s["Estado"]) >= 0).length;
+  const capacidad = Number(act["Capacidad"]) || 0;
+  const ocupadas = count(OCUPAN);
+  const inscripcion = norm_(act["Inscripción"]);
+
+  let estado = "abierta";
+  if (!isYes_(cfg["Inscripción abierta"]) || inscripcion === "cerrada") estado = "cerrada";
+  else if (inscripcion === "lista de espera" || ocupadas >= capacidad) estado = "espera";
+
   return {
-    registered: "pendiente de confirmación",
-    confirmed: "confirmado",
-    waitlist: "en lista de espera",
-    expired: "vencido",
-  }[status] || status;
+    estado: estado,
+    libres: Math.max(0, capacidad - ocupadas),
+    confirmadas: count([ESTADO.CONFIRMADA]),
+    enEspera: count([ESTADO.ESPERA]),
+  };
+}
+
+function publicActivities_() {
+  const cfg = config_();
+  const solicitudes = table_(TAB.SOL).rows;
+  return table_(TAB.ACT).rows
+    .filter((a) => a["ID"] && isYes_(a["Habilitado"]))
+    .map((a) => {
+      const disp = availability_(a, solicitudes, cfg);
+      return {
+        id: a["ID"],
+        nombre: a["Actividad"],
+        tipo: a["Tipo"],
+        grupo: a["Grupo"],
+        dias: a["Días"],
+        horario: a["Horario"],
+        capacidad: Number(a["Capacidad"]) || 0,
+        requisito: a["Requisito"] || "",
+        descripcion: a["Descripción"] || "",
+        imagen: a["Imagen"] || "",
+        estado: disp.estado,
+        libres: disp.libres,
+      };
+    });
+}
+
+// ==========================================================
+// Verificación (en tiempo real y antes de registrar)
+// ==========================================================
+// Devuelve sólo códigos: nunca datos personales de otra persona.
+//   ok            → puede continuar (lugar: "vacante" | "espera")
+//   sin_verificar → no se pudo comprobar un requisito: se registra "En validación"
+//   dni_invalido | no_encontrado | no_coincide | activa | no_cumple | cerrada | actividad_invalida
+
+function verify_(dni, actividadId, nombre) {
+  dni = dni_(dni);
+  if (!/^\d{7,8}$/.test(dni)) return { status: "dni_invalido" };
+
+  const est = table_(TAB.EST);
+  const student = est.rows.find((r) => dni_(r["DNI"]) === dni);
+  if (!student) return { status: "no_encontrado" };
+  if (nombre && !nameMatches_(nombre, student)) return { status: "no_coincide" };
+
+  const solicitudes = table_(TAB.SOL).rows;
+  if (solicitudes.some((s) => dni_(s["DNI"]) === dni && ACTIVOS.indexOf(s["Estado"]) >= 0)) {
+    return { status: "activa" };
+  }
+
+  if (!actividadId) return { status: "ok", student: student };
+  const act = table_(TAB.ACT).rows.find((a) => a["ID"] === actividadId && isYes_(a["Habilitado"]));
+  if (!act) return { status: "actividad_invalida" };
+  const disp = availability_(act, solicitudes, config_());
+  if (disp.estado === "cerrada") return { status: "cerrada" };
+
+  const result = { student: student, act: act, lugar: disp.estado === "espera" ? "espera" : "vacante" };
+  const column = String(act["Columna requisito"] || "").trim();
+  if (!column) return Object.assign(result, { status: "ok" });
+  if (est.headers.indexOf(column) < 0) return Object.assign(result, { status: "sin_verificar", motivo: act["Requisito"] });
+
+  const value = student[column];
+  if (isYes_(value)) return Object.assign(result, { status: "ok" });
+  if (isNo_(value)) return Object.assign(result, { status: "no_cumple", motivo: act["Requisito"] });
+  return Object.assign(result, { status: "sin_verificar", motivo: act["Requisito"] });
+}
+
+function publicVerify_(r) {
+  const out = { status: r.status };
+  if (r.lugar && (r.status === "ok" || r.status === "sin_verificar")) out.lugar = r.lugar;
+  if (r.motivo) out.motivo = String(r.motivo);
+  return out;
+}
+
+// ==========================================================
+// Registrar solicitud
+// ==========================================================
+
+function register_(data) {
+  if (data.confirmado !== true) return { status: "sin_confirmar" };
+  if (!String(data.nombre || "").trim()) return { status: "falta_nombre" };
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: "ocupado" };
+  try {
+    // Se repite todo dentro del lock: evita duplicados y que dos personas tomen la última vacante
+    const r = verify_(data.dni, data.actividad, data.nombre);
+    if (r.status !== "ok" && r.status !== "sin_verificar") return publicVerify_(r);
+
+    const estado = r.status === "sin_verificar" ? ESTADO.VALIDACION
+      : r.lugar === "espera" ? ESTADO.ESPERA : ESTADO.PENDIENTE;
+    const sol = table_(TAB.SOL);
+    const id = "S-" + Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "yyMMdd") + "-" +
+      Utilities.getUuid().slice(0, 6).toUpperCase();
+    const row = {
+      "ID": id,
+      "Fecha": new Date(),
+      "DNI": dni_(data.dni),
+      "TUMO ID": r.student["TUMO ID"],
+      "Nombre ingresado": String(data.nombre).trim(),
+      "Nombre 360": r.student["Nombre"] + " " + r.student["Apellido"],
+      "Email": r.student["Email"],
+      "Actividad ID": r.act["ID"],
+      "Actividad": r.act["Actividad"],
+      "Grupo": r.act["Grupo"],
+      "Estado": estado,
+      "Validación": r.status === "ok" ? "Identidad OK · Requisitos OK" : "Identidad OK · Requisito sin verificar",
+      "Motivo": r.status === "sin_verificar" ? "Verificar a mano: " + (r.motivo || "requisito") : "",
+      "Token": Utilities.getUuid(),
+      "Actualizado": new Date(),
+    };
+    append_(sol, row);
+    log_(row, "", estado, "Solicitud recibida desde la web");
+    sendTemplate_("RECEPCION", row, r.act);
+    return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado] };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function publicStatus_(dni) {
+  dni = dni_(dni);
+  const mine = table_(TAB.SOL).rows.filter((s) => dni_(s["DNI"]) === dni);
+  const active = mine.filter((s) => ACTIVOS.indexOf(s["Estado"]) >= 0).pop();
+  const last = active || mine.pop();
+  if (!last) return { status: "no_encontrado" };
+  return { status: "ok", estado: last["Estado"], mensaje: ESTADO_PUBLICO[last["Estado"]] || last["Estado"] };
+}
+
+// ==========================================================
+// API web (la llama /api/inscripcion en Vercel)
+// ==========================================================
+
+function authorized_(key) {
+  const secret = PropertiesService.getScriptProperties().getProperty("API_SECRET");
+  return secret && key === secret;
+}
+
+function doGet(e) {
+  const p = e.parameter || {};
+  if (!authorized_(p.key)) return json_({ status: "no_autorizado" });
+  try {
+    if (p.action === "actividades") return json_({ status: "ok", actividades: publicActivities_() });
+    if (p.action === "verificar") return json_(publicVerify_(verify_(p.dni, p.actividad, p.nombre)));
+    if (p.action === "estado") return json_(publicStatus_(p.dni));
+    return json_({ status: "accion_invalida" });
+  } catch (err) {
+    console.error(err);
+    return json_({ status: "error" });
+  }
+}
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    if (!authorized_(data.key)) return json_({ status: "no_autorizado" });
+    if (data.action === "solicitud") return json_(register_(data));
+    return json_({ status: "accion_invalida" });
+  } catch (err) {
+    console.error(err);
+    return json_({ status: "error" });
+  }
 }
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function page_(title, text) {
-  return HtmlService.createHtmlOutput(layout_(title, [text]))
-    .setTitle(EVENT.NAME)
-    .addMetaTag("viewport", "width=device-width, initial-scale=1");
+// ==========================================================
+// Cambios del equipo en la planilla (trigger "Al editar" instalable)
+// ==========================================================
+
+function onSheetEdit(e) {
+  const sh = e.range.getSheet();
+  if (sh.getName() !== TAB.SOL) return;
+  const sol = table_(TAB.SOL);
+  const col = sol.headers.indexOf("Estado") + 1;
+  if (e.range.getColumn() > col || e.range.getLastColumn() < col) return;
+
+  const acts = table_(TAB.ACT).rows;
+  for (let r = e.range.getRow(); r <= e.range.getLastRow(); r++) {
+    const row = sol.rows.find((x) => x._row === r);
+    if (!row) continue;
+    const before = e.range.getNumRows() === 1 ? (e.oldValue || "") : "?";
+    const after = row["Estado"];
+    if (after === before) continue;
+
+    if (ESTADOS.indexOf(after) < 0) {
+      setCells_(sol, row, { "Estado": before === "?" ? ESTADO.PENDIENTE : before });
+      ss_().toast("\"" + after + "\" no es un estado válido.", "FlashLabs", 6);
+      continue;
+    }
+
+    const act = acts.find((a) => a["ID"] === row["Actividad ID"]);
+    if (after === ESTADO.CONFIRMADA && act) {
+      const confirmadas = sol.rows.filter((s) => s._row !== r && s["Actividad ID"] === act["ID"] &&
+        s["Estado"] === ESTADO.CONFIRMADA).length;
+      if (confirmadas >= (Number(act["Capacidad"]) || 0)) {
+        const back = before && before !== "?" ? before : ESTADO.PENDIENTE;
+        setCells_(sol, row, { "Estado": back });
+        ss_().toast("Capacidad completa en " + act["Actividad"] + " " + act["Grupo"] + ". No se confirmó.", "FlashLabs", 8);
+        log_(row, after, back, "Rechazado: capacidad completa");
+        continue;
+      }
+    }
+
+    setCells_(sol, row, { "Actualizado": new Date() });
+    log_(row, before, after, "Cambio manual");
+    const template = { "Confirmada": "CONFIRMADA", "Lista de espera": "ESPERA", "Cancelada": "CANCELADA", "No elegible": "NO_ELEGIBLE" }[after];
+    if (template) sendTemplate_(template, row, act);
+  }
 }
 
-// Ejecutar UNA vez a mano: crea la hoja y los triggers
+// ==========================================================
+// Historial y mails
+// ==========================================================
+
+function log_(row, before, after, detail) {
+  let user = "web";
+  try { user = Session.getActiveUser().getEmail() || "web"; } catch (err) { /* sin permiso */ }
+  append_(table_(TAB.HIS), {
+    "Fecha": new Date(), "Usuario": user, "Solicitud": row["ID"], "DNI": row["DNI"],
+    "Antes": before, "Después": after, "Detalle": detail,
+  });
+}
+
+function sendTemplate_(key, row, act) {
+  const msg = table_(TAB.MSG).rows.find((m) => m["Clave"] === key);
+  if (!msg) return;
+  const cfg = config_();
+  const testTo = String(cfg["Modo prueba: enviar todos los mails a"] || "").trim();
+  const to = testTo || String(row["Email"] || "").trim();
+  if (!to) {
+    log_(row, row["Estado"], row["Estado"], "Mail " + key + " no enviado: el estudiante no tiene email");
+    return;
+  }
+  const vars = {
+    nombre: String(row["Nombre 360"] || row["Nombre ingresado"]).split(" ")[0],
+    actividad: row["Actividad"],
+    grupo: row["Grupo"],
+    dias: act ? act["Días"] : "",
+    horario: act ? act["Horario"] : "",
+    contacto: cfg["Contacto"] || "TUMO Barracas",
+  };
+  const subject = (testTo ? "[PRUEBA → " + row["Email"] + "] " : "") + fill_(msg["Asunto"], vars);
+  MailApp.sendEmail({ to: to, subject: subject, body: fill_(msg["Cuerpo"], vars), name: "TUMO Barracas" });
+}
+
+// ==========================================================
+// Configuración inicial
+// ==========================================================
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu("FlashLabs")
+    .addItem("Configurar / reparar planilla", "setup")
+    .addItem("Ver clave de la API", "showSecret")
+    .addToUi();
+}
+
 function setup() {
-  sheet_();
-  ScriptApp.getProjectTriggers().forEach((t) => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger("hourlyJob").timeBased().everyHours(1).create();
-  ScriptApp.newTrigger("dailyJob").timeBased().everyDays(1).atHour(9).create();
+  const ss = ss_();
+  Object.keys(HEADERS).forEach((name) => ensureTab_(name, HEADERS[name]));
+
+  if (table_(TAB.CFG).rows.length === 0) {
+    const sh = ss.getSheetByName(TAB.CFG);
+    SEED_CONFIG.forEach((r) => sh.appendRow(r));
+    // Mientras se prueba, todos los mails van al dueño de la planilla
+    sh.getRange(4, 2).setValue(Session.getEffectiveUser().getEmail());
+  }
+  if (table_(TAB.MSG).rows.length === 0) {
+    const sh = ss.getSheetByName(TAB.MSG);
+    SEED_MENSAJES.forEach((r) => sh.appendRow(r));
+  }
+  if (table_(TAB.ACT).rows.length === 0) {
+    const sh = ss.getSheetByName(TAB.ACT);
+    const cap = Number(config_()["Capacidad por grupo"]) || 20;
+    SEED_ACTIVIDADES.forEach((a) => {
+      sh.appendRow([a[0] + "-a", a[1], "FlashLab", "A", "SÍ", "Abierta", DIAS_DICIEMBRE, a[3], cap, "", "", "", "", a[2]]);
+      if (a[4]) sh.appendRow([a[0] + "-b", a[1], "FlashLab", "B", "NO", "Abierta", DIAS_DICIEMBRE, a[4], cap, "", "", "", "", a[2]]);
+    });
+  }
+  if (table_(TAB.EST).rows.length === 0) {
+    const sh = ss.getSheetByName(TAB.EST);
+    sh.getRange(1, HEADERS.Estudiantes.length + 1).setValue("Programación completada");
+    SEED_ESTUDIANTES_PRUEBA.forEach((r) => sh.appendRow(r));
+  }
+
+  formatTabs_();
+  buildSummary_();
+
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty("API_SECRET")) props.setProperty("API_SECRET", Utilities.getUuid().replace(/-/g, ""));
+
+  ScriptApp.getProjectTriggers()
+    .filter((t) => t.getHandlerFunction() === "onSheetEdit")
+    .forEach((t) => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger("onSheetEdit").forSpreadsheet(ss).onEdit().create();
+
+  showSecret();
+}
+
+function ensureTab_(name, headers) {
+  const ss = ss_();
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  } else {
+    // Agrega columnas que falten sin tocar las existentes
+    const current = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+    headers.filter((h) => current.indexOf(h) < 0).forEach((h) => {
+      sh.getRange(1, sh.getLastColumn() + 1).setValue(h);
+    });
+  }
+  sh.setFrozenRows(1);
+  sh.getRange(1, 1, 1, sh.getLastColumn()).setFontWeight("bold").setBackground("#2730e7").setFontColor("#ffffff");
+  return sh;
+}
+
+function formatTabs_() {
+  const sol = table_(TAB.SOL);
+  const estadoCol = sol.headers.indexOf("Estado") + 1;
+  sol.sh.getRange(2, estadoCol, sol.sh.getMaxRows() - 1, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(ESTADOS, true).setAllowInvalid(false).build());
+  ["DNI"].forEach((h) => {
+    [TAB.SOL, TAB.EST].forEach((tab) => {
+      const t = table_(tab);
+      const c = t.headers.indexOf(h) + 1;
+      if (c > 0) t.sh.getRange(2, c, t.sh.getMaxRows() - 1, 1).setNumberFormat("@");
+    });
+  });
+  const act = table_(TAB.ACT);
+  const yesNo = SpreadsheetApp.newDataValidation().requireValueInList(["SÍ", "NO"], true).build();
+  act.sh.getRange(2, act.headers.indexOf("Habilitado") + 1, act.sh.getMaxRows() - 1, 1).setDataValidation(yesNo);
+  act.sh.getRange(2, act.headers.indexOf("Inscripción") + 1, act.sh.getMaxRows() - 1, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(["Abierta", "Lista de espera", "Cerrada"], true).build());
+}
+
+// Pestaña de sólo lectura con vacantes por actividad y grupo (fórmulas, se actualiza sola)
+function buildSummary_() {
+  const ss = ss_();
+  let sh = ss.getSheetByName(TAB.RES);
+  if (!sh) sh = ss.insertSheet(TAB.RES, 0);
+  sh.clear();
+  sh.getProtections(SpreadsheetApp.ProtectionType.SHEET).forEach((p) => p.remove());
+  const act = table_(TAB.ACT);
+  const sol = table_(TAB.SOL);
+  const L = (t, h) => columnLetter_(t.headers.indexOf(h) + 1);
+  const solId = "Solicitudes!" + L(sol, "Actividad ID") + ":" + L(sol, "Actividad ID");
+  const solEstado = "Solicitudes!" + L(sol, "Estado") + ":" + L(sol, "Estado");
+  const countIf = (cell, estado) => "COUNTIFS(" + solId + "," + cell + "," + solEstado + ",\"" + estado + "\")";
+
+  sh.getRange(1, 1, 1, 10).setValues([["ID", "Actividad", "Grupo", "Habilitado", "Capacidad",
+    "En validación", "Pendientes", "Confirmadas", "Lista de espera", "Libres"]]);
+  const rows = Math.max(act.rows.length, 1) + 20; // margen para actividades nuevas
+  const formulas = [];
+  for (let i = 0; i < rows; i++) {
+    const r = i + 2;
+    const id = "A" + r;
+    const ref = (h) => "Actividades!" + L(act, h) + r;
+    formulas.push([
+      "=IF(" + ref("ID") + "=\"\",\"\"," + ref("ID") + ")",
+      "=IF(" + id + "=\"\",\"\"," + ref("Actividad") + ")",
+      "=IF(" + id + "=\"\",\"\"," + ref("Grupo") + ")",
+      "=IF(" + id + "=\"\",\"\"," + ref("Habilitado") + ")",
+      "=IF(" + id + "=\"\",\"\"," + ref("Capacidad") + ")",
+      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.VALIDACION) + ")",
+      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.PENDIENTE) + ")",
+      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.CONFIRMADA) + ")",
+      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.ESPERA) + ")",
+      "=IF(" + id + "=\"\",\"\",E" + r + "-H" + r + ")",
+    ]);
+  }
+  sh.getRange(2, 1, rows, 10).setFormulas(formulas);
+  sh.setFrozenRows(1);
+  sh.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#f6ab1e");
+  sh.protect().setWarningOnly(true).setDescription("Se calcula solo. Editá Actividades o Solicitudes.");
+}
+
+function columnLetter_(n) {
+  let s = "";
+  while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
+function showSecret() {
+  const secret = PropertiesService.getScriptProperties().getProperty("API_SECRET");
+  const text = "Clave de la API (pegala en Vercel como APPS_SCRIPT_KEY):\n\n" + secret;
+  try { SpreadsheetApp.getUi().alert(text); } catch (err) { console.log(text); }
 }

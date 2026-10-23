@@ -1,59 +1,66 @@
-# Registration backend: setup
+# Back de inscripciones: puesta en marcha
 
-The registration form lives on the website (`inscripcion.html`). It sends each sign-up to a
-**Google Apps Script** web app that writes it into a **Google Sheet** and sends every email.
-No server to host. The website stays static (e.g. GitHub Pages). No Google Form needed.
+TUMO Barracas · FlashLabs diciembre 2026
 
 ```
- index.html ──"Inscribirme" (?lab=…)──▶ inscripcion.html
-                                            │  POST registration
-                                            │  GET  ?action=status&dni=…
-                                            ▼
-                                   Apps Script (Code.gs) ──▶ Google Sheet "Inscripciones"
-                                   ├─ blocks duplicate DNI
-                                   ├─ emails student + guardian
-                                   ├─ confirm link (?action=confirm&token=…)
-                                   └─ hourly + daily jobs
+Web (Vercel) ──▶ /api/inscripcion (Vercel) ──▶ Apps Script (Code.gs) ──▶ Google Sheets
+                 oculta la URL y la clave,       valida, registra,         toda la información
+                 limita intentos, timeout 15 s   manda mails               (el equipo trabaja acá)
 ```
 
-## Participant lifecycle
+## 1. Crear la planilla (una sola vez)
 
-Capacity is **20 per lab and per turno** (TM / TT).
+1. Entrá a **sheets.new** con tu cuenta de Google. Se crea una planilla en blanco. Ponele de nombre "FlashLabs Diciembre 2026".
+2. **Extensiones → Apps Script**. Borrá el código de ejemplo y pegá todo `apps-script/Code.gs`. Guardá (Ctrl+S).
+3. Arriba, en el selector de funciones, elegí **setup** → **Ejecutar**.
+   - Google pide permisos ("Esta app no está verificada") → **Configuración avanzada → Ir a … (no seguro) → Permitir**. Es normal: el script es tuyo.
+   - Al terminar aparece la **clave de la API**. Copiala (se puede volver a ver con el menú **FlashLabs → Ver clave de la API**).
+4. Volvé a la planilla: ya tiene las pestañas **Resumen, Actividades, Estudiantes, Solicitudes, Historial, Mensajes y Config**, con las 8 actividades del cronograma y 5 estudiantes **de prueba**.
 
-| Event | New status | Email (to student + guardian) |
-|---|---|---|
-| Form submitted | `registered` | "We received your registration" + **Confirm** button |
-| Same DNI already has an active registration | not saved | Form shows "already registered" (blocks a 2nd lab) |
-| 24 h without confirming | — | Reminder: "Remember to confirm" |
-| Clicks Confirm, slot has < 20 confirmed | `confirmed` | "Your spot is secured" + when/where |
-| Clicks Confirm, slot already full | `waitlist` | "You're on the waiting list" |
-| 48 h without confirming | `expired` | "You lost your spot" |
-| Staff set a confirmed row to `cancelled` | first `waitlist` of that slot → `confirmed` | "A spot opened up for you" |
-| 2 days before / morning of the event | — | "See you on…" + address |
+## 2. Publicar la API
 
-## Step by step
+1. En Apps Script: **Implementar → Nueva implementación** → tipo **Aplicación web**.
+   - Ejecutar como: **Yo** · Quién tiene acceso: **Cualquier usuario**.
+2. Copiá la URL que termina en `/exec`.
+3. En Vercel → proyecto → **Settings → Environments → Production → Environment Variables**, agregá:
+   - `APPS_SCRIPT_URL` = la URL `/exec`
+   - `APPS_SCRIPT_KEY` = la clave del paso 1.3
+4. Redeploy (o push). Probá: `https://tumoflashlab.vercel.app/api/inscripcion?action=actividades` debe devolver las actividades.
 
-1. Create an empty **Google Sheet** with a TUMO account.
-2. **Extensions → Apps Script**, delete the sample code and paste `apps-script/Code.gs`.
-   Fill in `EVENT` (date, address, start). Keep `LABS` / `TURNOS` in sync with `config.js`.
-3. Select `setup` in the toolbar → **Run** once. It creates the "Inscripciones" tab and the timers. Accept the permissions.
-4. **Deploy → New deployment → Web app**. Execute as: **Me**. Who has access: **Anyone**. Copy the `/exec` URL.
-5. In `config.js` set `API_URL: "https://script.google.com/macros/s/…/exec"`.
-6. Test: sign up with your own DNI and email → get the email → click Confirm → check the status box on the form page.
+> Cada vez que cambies `Code.gs`: **Implementar → Administrar implementaciones → ✏️ → Versión: Nueva → Implementar**. Así la URL no cambia.
 
-After editing `Code.gs`, use **Deploy → Manage deployments → Edit → New version** so the same URL picks up the change.
+## 3. Cómo se usa la planilla
 
-## Adding or changing a Flash Lab
+| Pestaña | Para qué |
+|---|---|
+| **Resumen** | Vacantes por actividad y grupo (se calcula sola, no se edita). |
+| **Actividades** | La cartelera. `Habilitado` = SÍ/NO (los grupos B arrancan en NO). `Inscripción` = Abierta / Lista de espera / Cerrada. `Capacidad` por grupo. `Docentes` no se muestra en la web. |
+| **Estudiantes** | La bajada del 360. Hoy tiene 5 estudiantes de prueba (DNI 40000001 a 40000005): reemplazalos por la bajada real. |
+| **Solicitudes** | Una fila por solicitud. **El equipo cambia la columna `Estado`** (menú desplegable). |
+| **Historial** | Cada cambio de estado: quién, cuándo, antes y después. No editar. |
+| **Mensajes** | Textos de los mails. Se pueden editar; `{nombre}`, `{actividad}`, `{grupo}`, `{dias}`, `{horario}`, `{contacto}` se reemplazan solos. |
+| **Config** | Abrir/cerrar todo, capacidad por defecto, **modo prueba**, plazo de invitación, contacto. |
 
-Edit `LABS` in `config.js` (name, color, texts, turnos, optional `media` GIF/video for the panel header)
-and add the same `id` to `LABS` in `Code.gs`.
+**Confirmar vacantes:** en Solicitudes, cambiá `Estado` a **Confirmada**. Si el grupo ya está completo, la planilla lo rechaza y avisa. Al confirmar se manda el mail de confirmación. También mandan mail: Lista de espera, Cancelada y No elegible.
 
-## Things to decide with the team
+**Modo prueba:** en Config, *"Modo prueba: enviar todos los mails a"* tiene tu mail. Mientras esté lleno, **todos** los mails te llegan a vos (con el destinatario real en el asunto). Vacialo cuando se lance.
 
-- **Sending account:** emails go out from the account that owns the script. Quotas: ~100/day on free Gmail, ~1500/day on Google Workspace. Each send counts 2 recipients.
-- **One spot per event or across events?** Right now "active" means any registered/confirmed/waitlist row in this sheet. Use a new sheet per event to reset it.
-- **Confirmation window:** `EVENT.CONFIRM_HOURS` (48 h). Shorten it close to the event date.
-- **Privacy:** the status lookup only returns a status word, never names, emails or documents.
+## 4. Reglas que aplica el sistema
+
+- **Identidad:** el DNI tiene que estar en Estudiantes. El nombre se compara sin tildes ni mayúsculas (alcanza con un nombre y un apellido). Nunca se muestra el nombre registrado.
+- **Una sola solicitud activa por DNI.** Activas: Recibida, En validación, Pendiente de confirmación, Confirmada, Lista de espera, Vacante ofrecida. Si se cancela, puede volver a inscribirse.
+- **Vacantes:** una solicitud nueva queda *Pendiente de confirmación* mientras Pendientes + Confirmadas + Ofrecidas < Capacidad. Si no, entra en *Lista de espera*. Recibir una solicitud **no** la confirma: confirma el equipo.
+- **Requisitos:** en Actividades, `Requisito` es el texto que ve el estudiante y `Columna requisito` es el nombre de una columna de Estudiantes (ej. "Robótica completada").
+  - SÍ / x / completado → cumple.
+  - NO → no cumple: se bloquea y se muestra el motivo.
+  - Vacío, o la columna no existe → **no se puede verificar**: se registra como *En validación* para revisar a mano.
+
+## 5. Pendiente para las próximas fases
+
+- Fase 3-4: la web todavía usa el formulario viejo. Hay que conectar la cartelera y el formulario nuevo (nombre + DNI, verificación en tiempo real, 3 confirmaciones).
+- Fase 6: invitaciones automáticas desde la lista de espera (plazo en Config).
+- Descripciones e imágenes de cada actividad (columnas `Descripción` e `Imagen`).
+- Mover la planilla a la cuenta de TUMO cuando esté (Archivo → Hacer una copia, y repetir los pasos 1.3 y 2).
 
 ---
 
