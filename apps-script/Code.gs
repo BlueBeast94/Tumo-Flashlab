@@ -116,17 +116,36 @@ const SEED_ESTUDIANTES_PRUEBA = [
 
 function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
 
+// Cada pestaña se lee una sola vez por pedido. Actividades y Config además se guardan
+// 30 s en caché (cambian poco): los cambios del equipo ahí tardan hasta 30 s en verse en la web.
+let MEMO = {};
+function resetMemo_() { MEMO = {}; }
+const CACHED_TABS = ["Actividades", "Config"];
+
 function table_(name) {
+  if (MEMO[name]) return MEMO[name];
   const sh = ss_().getSheetByName(name);
   if (!sh) throw new Error("Falta la pestaña " + name + ". Ejecutá setup().");
-  const values = sh.getDataRange().getValues();
+  const cache = CACHED_TABS.indexOf(name) >= 0 ? CacheService.getScriptCache() : null;
+  const hit = cache && cache.get("tab:" + name);
+  const values = hit ? JSON.parse(hit) : sh.getDataRange().getValues();
+  if (cache && !hit) {
+    try { cache.put("tab:" + name, JSON.stringify(values), 30); } catch (err) { /* demasiado grande */ }
+  }
   const headers = values.shift().map((h) => String(h).trim());
   const rows = values.map((v, i) => {
     const row = { _row: i + 2 };
     headers.forEach((h, j) => { row[h] = v[j]; });
     return row;
   });
-  return { sh: sh, headers: headers, rows: rows };
+  MEMO[name] = { sh: sh, headers: headers, rows: rows };
+  return MEMO[name];
+}
+
+// Después de escribir en Actividades/Config desde el script (setup), la caché queda vieja
+function forget_(name) {
+  delete MEMO[name];
+  if (CACHED_TABS.indexOf(name) >= 0) CacheService.getScriptCache().remove("tab:" + name);
 }
 
 function setCells_(t, row, changes) {
@@ -327,6 +346,7 @@ function authorized_(key) {
 }
 
 function doGet(e) {
+  resetMemo_();
   const p = e.parameter || {};
   if (!authorized_(p.key)) return json_({ status: "no_autorizado" });
   try {
@@ -341,6 +361,7 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  resetMemo_();
   try {
     const data = JSON.parse(e.postData.contents);
     if (!authorized_(data.key)) return json_({ status: "no_autorizado" });
@@ -361,6 +382,7 @@ function json_(obj) {
 // ==========================================================
 
 function onSheetEdit(e) {
+  resetMemo_();
   const sh = e.range.getSheet();
   if (sh.getName() !== TAB.SOL) return;
   const sol = table_(TAB.SOL);
@@ -448,18 +470,22 @@ function onOpen() {
 }
 
 function setup() {
+  resetMemo_();
   const ss = ss_();
   Object.keys(HEADERS).forEach((name) => ensureTab_(name, HEADERS[name]));
+  Object.keys(TAB).forEach((k) => forget_(TAB[k]));
 
   if (table_(TAB.CFG).rows.length === 0) {
     const sh = ss.getSheetByName(TAB.CFG);
     SEED_CONFIG.forEach((r) => sh.appendRow(r));
     // Mientras se prueba, todos los mails van al dueño de la planilla
     sh.getRange(4, 2).setValue(Session.getEffectiveUser().getEmail());
+    forget_(TAB.CFG);
   }
   if (table_(TAB.MSG).rows.length === 0) {
     const sh = ss.getSheetByName(TAB.MSG);
     SEED_MENSAJES.forEach((r) => sh.appendRow(r));
+    forget_(TAB.MSG);
   }
   if (table_(TAB.ACT).rows.length === 0) {
     const sh = ss.getSheetByName(TAB.ACT);
@@ -474,6 +500,7 @@ function setup() {
     sh.getRange(1, HEADERS.Estudiantes.length + 1).setValue("Programación completada");
     SEED_ESTUDIANTES_PRUEBA.forEach((r) => sh.appendRow(r));
   }
+  Object.keys(TAB).forEach((k) => forget_(TAB[k]));
 
   formatTabs_();
   buildSummary_();

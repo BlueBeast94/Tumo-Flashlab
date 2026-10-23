@@ -10,7 +10,7 @@
 // La URL y la clave del Apps Script nunca llegan al navegador.
 // ==========================================================
 
-const TIMEOUT_MS = 15000;
+const { callAppsScript, isConfigured } = require("./_appsScript");
 
 // Límite por IP y por minuto (en memoria: es aproximado, alcanza para frenar abusos simples)
 const LIMITS = { actividades: 60, verificar: 30, estado: 20, solicitud: 6 };
@@ -44,38 +44,11 @@ function send(res, status, data, headers = {}) {
     res.end(JSON.stringify(data));
 }
 
-async function callAppsScript(params, body) {
-    const url = new URL(process.env.APPS_SCRIPT_URL);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    try {
-        let response;
-        if (body) {
-            response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify({ ...body, key: process.env.APPS_SCRIPT_KEY }),
-                signal: controller.signal,
-            });
-        } else {
-            Object.entries({ ...params, key: process.env.APPS_SCRIPT_KEY })
-                .forEach(([k, v]) => url.searchParams.set(k, v));
-            response = await fetch(url, { signal: controller.signal });
-        }
-        const text = await response.text();
-        try { return JSON.parse(text); } catch { return { status: "error" }; }
-    } catch (err) {
-        return { status: err.name === "AbortError" ? "timeout" : "error" };
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
 const clean = (v, max = 80) => String(v || "").slice(0, max);
 const digits = (v) => String(v || "").replace(/\D/g, "").slice(0, 9);
 
 module.exports = async function handler(req, res) {
-    if (!process.env.APPS_SCRIPT_URL || !process.env.APPS_SCRIPT_KEY) {
+    if (!isConfigured()) {
         return send(res, 503, { status: "no_configurado" });
     }
     const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();

@@ -1,109 +1,53 @@
 // ==========================================================
-// TUMO Flash Lab — configuración y datos compartidos
-// Lo usan index.html e inscripcion.html
+// TUMO Barracas FlashLabs — datos generales del evento
+// Las actividades (cartelera) vienen de la planilla, vía /api/inscripcion.
+// El chatbot también usa este archivo.
 // ==========================================================
 
-const CONFIG = {
-    // URL del Web App de Google Apps Script (recibe inscripciones y responde el estado).
-    // Mientras esté vacío, las páginas funcionan en modo demo.
-    API_URL: "",
-    CAPACITY: 20, // lugares por lab y por turno
-};
+const API_URL = "/api/inscripcion";
 
-// Datos del evento. El chatbot responde sólo con esta información (y LABS / TURNOS).
 const EVENT = {
-    name: "TUMO Flash Lab",
-    date: "sábado 13 de diciembre de 2026",
-    place: "TUMO Buenos Aires (dirección a confirmar)",
-    ages: "12 a 18 años",
+    name: "FlashLabs de diciembre",
+    center: "TUMO Barracas",
+    dates: "jueves 10, viernes 11, martes 15 y jueves 17 de diciembre de 2026 (viernes 18: cierre y recuperatorio)",
+    slots: "tres franjas: 9:00 a 11:00, 14:00 a 16:00 y 17:00 a 19:00 (cada actividad y grupo tiene la suya)",
+    place: "TUMO Barracas",
     price: "Gratis",
-    bring: "Ganas de crear. Si es menor, la autorización firmada por su adulto responsable.",
+    contact: "",  // mail o teléfono para casos que no se resuelven en la web (vacío = "acercate a recepción")
     rules: [
-        "Hay 20 lugares por cada lab y por cada turno.",
-        "Cada participante (identificado por su DNI) puede inscribirse a una sola actividad.",
-        "Después de inscribirse llega un mail al estudiante y al responsable con un link para confirmar.",
-        "Hay 48 horas para confirmar; a las 24 horas se envía un recordatorio. Si no se confirma, el lugar se libera.",
-        "Los primeros 20 que confirman en cada lab y turno tienen el lugar asegurado; el resto queda en lista de espera.",
-        "Si alguien se da de baja, el primero de la lista de espera sube automáticamente y recibe un mail.",
-        "Dos días antes y el mismo día del evento se envía un recordatorio con el lugar y horario.",
-        "No hace falta experiencia previa y todo el material lo pone TUMO.",
-        "La inscripción se hace en la página inscripcion.html del sitio; el estado se consulta ahí mismo con el DNI.",
+        "Cada estudiante puede solicitar vacante en una sola actividad de diciembre.",
+        "Para inscribirse hay que elegir la actividad en la cartelera y completar nombre, apellido y DNI. No se pide el TUMO ID.",
+        "El sistema verifica el DNI con los registros de TUMO y los requisitos de la actividad antes de registrar la solicitud.",
+        "Recibir la solicitud no garantiza la vacante: el equipo de TUMO confirma las vacantes y se comunica después.",
+        "Cada actividad y grupo tiene su propia capacidad. Si no hay vacantes, la solicitud entra en lista de espera por orden de llegada.",
+        "Los grupos B se abren según la demanda.",
+        "Para cambiar de actividad después de enviar la solicitud hay que contactar al equipo de TUMO.",
+        "Las actividades son gratuitas.",
     ],
-    contact: "",  // mail de contacto para derivar preguntas que el bot no sepa responder
 };
 
-const TURNOS = {
-    TM: { name: "Turno mañana", time: "10:00 – 13:00" },
-    TT: { name: "Turno tarde",  time: "14:00 – 17:00" },
-};
+const contactText = () => EVENT.contact ? `escribinos a ${EVENT.contact}` : "acercate a la recepción de TUMO Barracas";
 
-// Flash Labs disponibles. Para sumar uno, agregá un objeto acá.
-// "media" acepta la ruta a un GIF/video; si está vacío se usa la animación de la tarjeta.
-const LABS = [
-    {
-        id: "programacion",
-        name: "Programación",
-        color: "blue",
-        icon: "&lt;/&gt;", // se inserta como HTML
-        short: "Escribí tu primer programa y hacé que algo cobre vida en pantalla.",
-        intro: "Vas a aprender a pensar como programador: dividir un problema en pasos, escribir código y ver el resultado al instante.",
-        youWill: [
-            "Entender variables, condiciones y bucles con ejemplos visuales",
-            "Programar una mini app interactiva",
-            "Presentar tu proyecto al resto del grupo",
-        ],
-        takeHome: "Tu proyecto publicado con un link para compartir.",
-        turnos: ["TM", "TT"],
-        media: "",
-    },
-    {
-        id: "videojuegos",
-        name: "Game Development",
-        color: "red",
-        icon: "▶",
-        short: "Diseñá las reglas, los niveles y jugá tu propio videojuego.",
-        intro: "Del papel a la pantalla: vas a idear un juego, diseñar sus reglas y construir un nivel jugable.",
-        youWill: [
-            "Diseñar la mecánica y el objetivo de tu juego",
-            "Crear personajes, obstáculos y puntaje",
-            "Probar el juego de otros equipos y mejorar el tuyo",
-        ],
-        takeHome: "Un nivel jugable para mostrarle a tu familia y amigos.",
-        turnos: ["TM", "TT"],
-        media: "",
-    },
-    {
-        id: "animacion",
-        name: "Animación",
-        color: "yellow",
-        icon: "✦",
-        short: "Del boceto al movimiento: creá una animación corta cuadro a cuadro.",
-        intro: "Vas a descubrir cómo se crea la ilusión de movimiento y a animar tu propio personaje.",
-        youWill: [
-            "Aprender los principios básicos de la animación",
-            "Dibujar y animar una secuencia cuadro a cuadro",
-            "Sumarle sonido y exportarla",
-        ],
-        takeHome: "Un clip animado listo para subir a redes.",
-        turnos: ["TM", "TT"],
-        media: "",
-    },
-    {
-        id: "robotica",
-        name: "Robótica",
-        color: "dark",
-        icon: "⚙",
-        short: "Armá, conectá y programá un robot que resuelva un desafío.",
-        intro: "Sensores, motores y código: vas a armar un robot en equipo y programarlo para superar una pista.",
-        youWill: [
-            "Conocer los componentes de un robot y cómo se conectan",
-            "Programar movimientos y lecturas de sensores",
-            "Competir en el desafío final por equipos",
-        ],
-        takeHome: "La experiencia de haber construido y programado un robot real.",
-        turnos: ["TM", "TT"],
-        media: "",
-    },
-];
+// Llama a la API con un límite de tiempo. Devuelve siempre un objeto con "status".
+async function apiCall(params, body, timeoutMs = 20000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const url = body ? API_URL : `${API_URL}?${new URLSearchParams(params)}`;
+        const res = await fetch(url, body ? {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        } : { signal: controller.signal });
+        const data = await res.json().catch(() => ({}));
+        return data.status ? data : { status: "error" };
+    } catch (err) {
+        return { status: err.name === "AbortError" ? "timeout" : "sin_conexion" };
+    } finally {
+        clearTimeout(timer);
+    }
+}
 
-const findLab = (id) => LABS.find((lab) => lab.id === id);
+const escapeHtml = (text) => String(text ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

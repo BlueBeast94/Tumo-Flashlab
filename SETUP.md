@@ -55,10 +55,25 @@ Web (Vercel) ──▶ /api/inscripcion (Vercel) ──▶ Apps Script (Code.gs)
   - NO → no cumple: se bloquea y se muestra el motivo.
   - Vacío, o la columna no existe → **no se puede verificar**: se registra como *En validación* para revisar a mano.
 
-## 5. Pendiente para las próximas fases
+## 5. La web
 
-- Fase 3-4: la web todavía usa el formulario viejo. Hay que conectar la cartelera y el formulario nuevo (nombre + DNI, verificación en tiempo real, 3 confirmaciones).
-- Fase 6: invitaciones automáticas desde la lista de espera (plazo en Config).
+- **Cartelera** (`index.html` + `script.js`): lee la pestaña Actividades. Muestra sólo las filas con `Habilitado = SÍ`, con su estado (abierta / lista de espera / cerrada), horario, capacidad y requisitos. Los cambios en la planilla tardan hasta ~30 s en verse.
+- **Solicitud** (`inscripcion.html?actividad=<ID>` + `form.js`):
+  1. Al llegar, pregunta "¿Querés solicitar una vacante en …?" (Sí, continuar / Volver a la cartelera).
+  2. Muestra la actividad elegida (días, horario, requisitos) con "Cambiar actividad".
+  3. Pide nombre y apellido + DNI. El DNI se verifica mientras se escribe ("Verificando…"); el nombre se compara al salir del campo.
+  4. Casilla "Confirmo que quiero solicitar una vacante en …" antes de enviar.
+  5. «¡Recibimos tu inscripción!» aparece **sólo** si la planilla confirmó que la guardó.
+- **Chatbot**: usa `config.js` (reglas generales) + la cartelera de la planilla (cacheada 1 minuto).
+- `EVENT.contact` en `config.js`: si lo completás, los mensajes de error dicen "escribinos a …" en lugar de "acercate a la recepción".
+
+## 6. Actualizar el script después de un cambio en Code.gs
+
+Pegá el `Code.gs` nuevo en Apps Script, guardá y **Implementar → Administrar implementaciones → ✏️ → Versión: Nueva versión → Implementar**. La URL no cambia, no hay que tocar Vercel.
+
+## 7. Pendiente para las próximas fases
+
+- Fase 5-6: invitaciones automáticas desde la lista de espera (plazo en Config) y vencimientos.
 - Descripciones e imágenes de cada actividad (columnas `Descripción` e `Imagen`).
 - Mover la planilla a la cuenta de TUMO cuando esté (Archivo → Hacer una copia, y repetir los pasos 1.3 y 2).
 

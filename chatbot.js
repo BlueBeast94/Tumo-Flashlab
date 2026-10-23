@@ -112,16 +112,22 @@
     // Si la pregunta es para inscribirse y la respuesta no trae el link, lo agregamos
     const SIGNUP_INTENT = /inscrib|anot(o|ar|arme)|registr|formulario|quiero (ir|participar|sumarme)/i;
 
+    const plain = (text) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+    // Si la pregunta nombra una actividad de la cartelera (cargada en index.html), link directo a su formulario
     function signupLink(question) {
-        const q = question.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-        const lab = typeof LABS !== "undefined" && LABS.find((l) =>
-            q.includes(l.id) || q.includes(l.name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()));
-        return lab ? `/inscripcion.html?lab=${lab.id}` : "/inscripcion.html";
+        const q = plain(question);
+        const grupo = (q.match(/grupo ([ab])\b/) || [])[1];
+        const list = (window.FLASHLAB_ACTIVIDADES || []).filter((a) => a.estado !== "cerrada" && q.includes(plain(a.nombre)));
+        const act = list.find((a) => plain(a.grupo) === grupo) || list[0];
+        return act
+            ? `¡Perfecto! Podés inscribirte [acá](/inscripcion.html?actividad=${act.id})`
+            : "¡Perfecto! Elegí tu actividad en la [cartelera](/index.html#actividades)";
     }
 
     function withSignupLink(question, reply) {
-        if (!SIGNUP_INTENT.test(question) || /\]\(\/?inscripcion\.html/.test(reply)) return reply;
-        return `${reply}\n¡Perfecto! Podés inscribirte [acá](${signupLink(question)})`;
+        if (!SIGNUP_INTENT.test(question) || /\]\(\/?(inscripcion|index)\.html/.test(reply)) return reply;
+        return `${reply}\n${signupLink(question)}`;
     }
 
     async function ask(question) {

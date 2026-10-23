@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscripción · TUMO Flash Lab</title>
-    <meta name="description" content="Inscribite al Flash Lab de TUMO Buenos Aires.">
+    <title>Solicitar vacante · FlashLabs TUMO Barracas</title>
+    <meta name="description" content="Solicitá tu vacante en los FlashLabs de diciembre de TUMO Barracas.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=Caveat:wght@700&display=swap" rel="stylesheet">
@@ -13,107 +13,101 @@
 <body class="page-form">
 
     <header class="nav">
-        <a href="index.html" class="nav__logo" aria-label="TUMO Buenos Aires — volver al inicio">
+        <a href="index.html" class="nav__logo" aria-label="TUMO Barracas — volver al inicio">
             <span class="logo-tumo">TUMO</span>
-            <span class="logo-city">Buenos<br>Aires</span>
+            <span class="logo-city">Barracas</span>
         </a>
-        <a href="index.html" class="btn btn--ghost btn--sm">← Volver</a>
+        <a href="index.html#actividades" class="btn btn--ghost btn--sm">← Cartelera</a>
     </header>
 
     <main>
         <section class="form-hero">
-            <p class="kicker">Flash Lab · Sáb 13 de diciembre</p>
-            <h1>Inscripci<span class="hand hand--red">ó</span>n</h1>
-            <p class="section__lead">Completá los datos del estudiante y de su adulto responsable. Te vamos a escribir a los dos mails.</p>
+            <p class="kicker">FlashLabs · Diciembre 2026</p>
+            <h1>Solicit<span class="hand hand--red">á</span> tu vacante</h1>
         </section>
 
-        <form class="signup" data-signup novalidate>
+        <!-- Mensajes cuando no se puede mostrar el formulario (sin actividad, cerrada, error) -->
+        <section class="signup-state" data-view="loading">
+            <div class="spinner" aria-hidden="true"></div>
+            <p data-loading-text>Cargando la actividad…</p>
+        </section>
+        <section class="signup-state" data-view="message" hidden>
+            <p class="signup-state__text" data-message></p>
+            <div class="signup-state__actions" data-message-actions></div>
+        </section>
 
-            <!-- 1. Flash Lab -->
-            <fieldset class="signup__block">
-                <legend><span class="signup__num">1</span> Elegí el Flash Lab</legend>
-                <div class="lab-picker" data-lab-picker></div>
-                <p class="field__error" data-error-for="lab"></p>
-            </fieldset>
+        <!-- Formulario -->
+        <form class="signup" data-view="form" data-signup novalidate hidden>
 
-            <!-- 2. Turno -->
-            <fieldset class="signup__block">
-                <legend><span class="signup__num">2</span> Horario</legend>
-                <div class="turno-picker" data-turno-picker></div>
-                <p class="field__error" data-error-for="turno"></p>
-            </fieldset>
+            <!-- Confirmación 2: la actividad elegida -->
+            <section class="signup__block chosen" data-chosen>
+                <div class="chosen__head">
+                    <p class="chosen__label">Estás solicitando vacante en</p>
+                    <a href="index.html#actividades" class="chosen__change">Cambiar actividad</a>
+                </div>
+                <h2 data-chosen-name></h2>
+                <p class="chosen__meta" data-chosen-meta></p>
+                <dl class="chosen__facts">
+                    <div><dt>Días</dt><dd data-chosen-dias></dd></div>
+                    <div><dt>Horario</dt><dd data-chosen-horario></dd></div>
+                    <div><dt>Requisitos</dt><dd data-chosen-requisito></dd></div>
+                </dl>
+                <p class="chosen__waitlist" data-chosen-waitlist hidden>
+                    No quedan vacantes en este grupo: tu solicitud va a entrar en <strong>lista de espera</strong>.
+                </p>
+            </section>
 
-            <!-- 3. Estudiante -->
+            <!-- Datos del estudiante -->
             <fieldset class="signup__block">
-                <legend><span class="signup__num">3</span> Datos del estudiante</legend>
+                <legend><span class="signup__num">1</span> Tus datos</legend>
                 <div class="fields">
-                    <label class="field">
-                        <span>Nombre</span>
-                        <input name="nombre" required autocomplete="off">
+                    <label class="field field--wide" data-field="nombre">
+                        <span>Nombre y apellido</span>
+                        <input name="nombre" required autocomplete="name" placeholder="Como figura en TUMO">
+                        <span class="field__hint" data-hint="nombre"></span>
                     </label>
-                    <label class="field">
-                        <span>Apellido</span>
-                        <input name="apellido" required autocomplete="off">
-                    </label>
-                    <label class="field">
-                        <span>Documento (DNI)</span>
-                        <input name="documento" required inputmode="numeric" pattern="\d{7,8}" placeholder="Sin puntos" autocomplete="off">
-                    </label>
-                    <label class="field">
-                        <span>Correo del estudiante</span>
-                        <input name="email" type="email" required autocomplete="off">
+                    <label class="field field--wide" data-field="dni">
+                        <span>DNI</span>
+                        <input name="dni" required inputmode="numeric" maxlength="10" autocomplete="off" placeholder="Sin puntos ni espacios">
+                        <span class="verify" data-verify aria-live="polite">
+                            <span class="verify__icon" aria-hidden="true"></span>
+                            <span class="verify__text" data-verify-text>Lo usamos para identificarte en los registros de TUMO.</span>
+                        </span>
                     </label>
                 </div>
             </fieldset>
 
-            <!-- 4. Responsable -->
+            <!-- Confirmación 3 -->
             <fieldset class="signup__block">
-                <legend><span class="signup__num">4</span> Padre, madre o responsable</legend>
-                <div class="fields">
-                    <label class="field">
-                        <span>Nombre</span>
-                        <input name="respNombre" required autocomplete="given-name">
-                    </label>
-                    <label class="field">
-                        <span>Apellido</span>
-                        <input name="respApellido" required autocomplete="family-name">
-                    </label>
-                    <label class="field field--wide">
-                        <span>Correo del responsable</span>
-                        <input name="respEmail" type="email" required autocomplete="email">
-                    </label>
-                </div>
-                <label class="check">
-                    <input type="checkbox" name="autorizacion" required>
-                    <span>Soy el adulto responsable y autorizo la participación del estudiante en el Flash Lab.</span>
+                <legend><span class="signup__num">2</span> Confirmación</legend>
+                <label class="check" data-field="confirmo">
+                    <input type="checkbox" name="confirmo">
+                    <span data-confirm-text></span>
                 </label>
             </fieldset>
 
             <div class="signup__submit">
-                <p class="signup__summary" data-summary></p>
-                <button type="submit" class="btn btn--red btn--lg">Enviar inscripción</button>
+                <button type="submit" class="btn btn--red btn--lg" data-submit>Enviar solicitud</button>
                 <p class="signup__msg" data-form-msg aria-live="polite"></p>
             </div>
         </form>
 
-        <!-- Confirmación de envío -->
-        <section class="signup-done" data-done hidden>
+        <!-- Recepción (sólo si la solicitud quedó registrada) -->
+        <section class="signup-done" data-view="done" hidden>
             <span class="signup-done__icon">✓</span>
             <h2>¡Recibimos tu inscripción!</h2>
-            <p data-done-text></p>
-            <p class="signup-done__next">
-                Revisá tu correo (y el del responsable): te enviamos un link para <strong>confirmar en las próximas 48 horas</strong>.
-            </p>
+            <p>Pronto nos vamos a contactar con vos para confirmarte tu vacante. ¡Gracias!</p>
+            <p class="signup-done__next" data-done-detail></p>
             <a href="index.html" class="btn btn--blue">Volver al inicio</a>
         </section>
 
         <!-- Consultar estado -->
         <section class="status-wrap" id="estado">
             <div class="status">
-                <h3>¿Ya te inscribiste?</h3>
-                <p>Ingresá el documento del estudiante para ver el estado de la inscripción.</p>
+                <h3>¿Ya enviaste tu solicitud?</h3>
+                <p>Ingresá tu DNI para ver en qué estado está.</p>
                 <form class="status__form" data-status-form>
-                    <label class="sr-only" for="status-dni">Documento</label>
+                    <label class="sr-only" for="status-dni">DNI</label>
                     <input id="status-dni" inputmode="numeric" required placeholder="DNI sin puntos">
                     <button type="submit" class="btn btn--yellow">Consultar</button>
                 </form>
@@ -122,13 +116,26 @@
         </section>
     </main>
 
+    <!-- Confirmación 1: al elegir la actividad -->
+    <dialog class="confirm" data-confirm aria-labelledby="confirm-title">
+        <p class="kicker">Confirmá tu elección</p>
+        <h2 id="confirm-title">¿Querés solicitar una vacante en <span data-confirm-name></span>?</h2>
+        <p class="confirm__meta" data-confirm-meta></p>
+        <p class="chosen__waitlist" data-confirm-waitlist hidden>No quedan vacantes: vas a entrar en lista de espera.</p>
+        <p class="confirm__note">Podés solicitar vacante en <strong>una sola actividad</strong> de diciembre.</p>
+        <div class="confirm__actions">
+            <button type="button" class="btn btn--red" data-confirm-yes>Sí, continuar</button>
+            <a href="index.html#actividades" class="btn btn--ghost">Volver a la cartelera</a>
+        </div>
+    </dialog>
+
     <footer class="footer">
         <div class="footer__logo">
             <span class="logo-tumo">TUMO</span>
-            <span class="logo-city">Buenos<br>Aires</span>
+            <span class="logo-city">Barracas</span>
         </div>
         <p>Centro de tecnologías creativas para adolescentes. Gratuito.</p>
-        <p class="footer__small">© 2026 TUMO Buenos Aires</p>
+        <p class="footer__small">© 2026 TUMO Barracas</p>
     </footer>
 
     <script src="config.js"></script>
