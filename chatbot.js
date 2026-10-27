@@ -6,7 +6,7 @@
 (() => {
     const API = `${API_BASE}/api/chat`; // API_BASE viene de config.js
     const GREETING = "¡Hola! Soy Flashy 🤖 el asistente del Flash Lab. Preguntame lo que quieras sobre las actividades, los horarios o la inscripción.";
-    const SUGGESTIONS = ["¿Cuándo y dónde es?", "¿Tiene costo?", "¿Qué labs hay?", "¿Cómo me inscribo?"];
+    const SUGGESTIONS = ["¿Cuándo y dónde es?", "¿Qué labs hay?", "¿Cómo me inscribo?", "¿Cuál es el estado de mi solicitud?"];
     const ERRORS = {
         missing_key: "Todavía no estoy conectado 😅 (falta configurar la API key de Groq).",
         busy: "Estoy recibiendo muchas preguntas. Probá de nuevo en un minuto.",
@@ -130,12 +130,67 @@
         return `${reply}\n${signupLink(question)}`;
     }
 
+    // ---------- Estado de la solicitud ----------
+    // Se responde acá mismo con la planilla (como en las preguntas frecuentes). El documento NO va a la IA:
+    // ni la pregunta ni la respuesta se guardan en `history`.
+    const STATUS_INTENT = /estado de mi|mi solicitud|mi inscripci[oó]n|ya me (confirmaron|anot|inscrib)|me confirmaron|en qu[eé] (estado|qued)|tengo (la )?vacante|qued[eé] (anotad|inscript|en lista)/i;
+    let awaitingDoc = false;
+
+    // "40.123.456", "40 123 456" o "AA123456" → documento limpio; null si no hay uno en el texto
+    function docIn(text) {
+        const joined = text.replace(/(\d)[.\s-](?=\d)/g, "$1").toUpperCase();
+        const m = joined.match(/\b(?=[A-Z0-9]*\d)[A-Z0-9]{6,12}\b/);
+        return m ? cleanDoc(m[0]) : null; // cleanDoc viene de config.js
+    }
+
+    async function statusReply(doc) {
+        const r = await apiCall({ action: "estado", dni: doc });
+        if (r.status === "ok") return `Encontré tu solicitud: **${r.mensaje}**.`;
+        if (r.status === "no_encontrado") {
+            return "No encontré solicitudes con ese documento. Revisá que esté bien escrito (sin puntos). " +
+                "Si todavía no te anotaste, elegí tu actividad en la [cartelera](/index.html#actividades).";
+        }
+        return r.status === "timeout"
+            ? "La consulta está tardando más de lo esperado. Probá de nuevo en un rato."
+            : "No pude consultar ahora. Probá de nuevo en un rato.";
+    }
+
+    // Devuelve true si la pregunta era sobre el estado (y ya se respondió)
+    async function handleStatus(question) {
+        const doc = docIn(question);
+        const wantsStatus = STATUS_INTENT.test(question);
+        if (doc && (awaitingDoc || wantsStatus)) {
+            awaitingDoc = false;
+            const typing = showTyping();
+            const reply = await statusReply(doc);
+            typing.remove();
+            addMessage("bot", reply);
+            return true;
+        }
+        if (wantsStatus) {
+            awaitingDoc = true;
+            addMessage("bot", "¡Te ayudo! Escribime tu **DNI** (o el documento que usaste para anotarte), sin puntos ni espacios.");
+            return true;
+        }
+        awaitingDoc = false; // cambió de tema
+        return false;
+    }
+
     async function ask(question) {
         question = question.trim();
         if (!question) return;
 
         $("[data-chat-chips]").hidden = true;
         addMessage("user", question);
+
+        input.value = "";
+        form.classList.add("is-busy");
+        const handled = await handleStatus(question);
+        form.classList.remove("is-busy");
+        if (handled) {
+            input.focus();
+            return;
+        }
         history.push({ role: "user", content: question });
         input.value = "";
         form.classList.add("is-busy");
@@ -208,6 +263,22 @@
     $("[data-chat-close]").addEventListener("click", () => { setOpen(false); toggle.focus(); });
     $("[data-chat-backdrop]").addEventListener("click", () => setOpen(false));
     $("[data-chat-dismiss]").addEventListener("click", hideBubble);
+    // Un link del chat (cartelera, preguntas frecuentes, formulario) cierra el chat para que se vea a dónde lleva
+    log.addEventListener("click", (e) => {
+        const link = e.target.closest(".chat__link");
+        if (!link) return;
+        setOpen(false);
+        // Misma página (ej. /index.html#actividades): se baja a la sección recién con el chat cerrado,
+        // porque mientras está abierto la página no se puede mover
+        const url = new URL(link.href, location.href);
+        const target = url.hash && url.pathname.replace(/\/$/, "/index.html") === location.pathname.replace(/\/$/, "/index.html")
+            ? document.querySelector(url.hash) : null;
+        if (!target) return;
+        e.preventDefault();
+        window.history.pushState(null, "", url.hash); // (`history` acá adentro es la charla)
+        window.dispatchEvent(new HashChangeEvent("hashchange")); // abre "¿Cuál es el estado…?" si el link es #estado
+        setTimeout(() => target.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    });
     bubble.addEventListener("click", (e) => { if (!e.target.closest("[data-chat-dismiss]")) setOpen(true); });
     $("[data-chat-chips]").addEventListener("click", (e) => {
         if (e.target.matches(".chat__chip")) ask(e.target.textContent);

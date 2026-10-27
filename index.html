@@ -22,7 +22,7 @@
             <a href="#que-es">Qué es</a>
             <!-- <a href="#como-funciona">Cómo funciona</a> -->
             <a href="#actividades">Cartelera</a>
-            <a href="#donde">Dónde</a>
+            <!-- <a href="#donde">Dónde</a> -->
             <a href="#faq">FAQ</a>
         </nav>
         <a href="#actividades" class="btn btn--blue btn--sm">Inscribite</a>
@@ -54,7 +54,7 @@
                 </div>
                 <div class="hero__cta">
                     <a href="#actividades" class="btn btn--red">Ver la cartelera</a>
-                    <a href="inscripcion.html#estado" class="btn btn--ghost">Consultar mi solicitud</a>
+                    <a href="#estado" class="btn btn--ghost">Consultar mi solicitud</a>
                 </div>
             </div>
 
@@ -146,7 +146,7 @@
             <div class="cartelera-msg" data-cartelera-msg hidden></div>
         </section>
 
-        <!-- CUÁNDO Y DÓNDE -->
+        <!-- CUÁNDO Y DÓNDE (oculto por ahora, no borrar)
         <section class="section section--light" id="donde">
             <div class="split">
                 <div>
@@ -173,6 +173,7 @@
                 </div>
             </div>
         </section>
+        -->
 
         <!-- CTA -->
         <section class="cta" id="inscripcion">
@@ -189,6 +190,20 @@
             <p class="kicker">Preguntas frecuentes</p>
             <h2>Antes de que preguntes</h2>
             <div class="faq">
+                <!-- Consultar el estado (antes estaba al final del formulario) -->
+                <details class="faq__status" id="estado">
+                    <summary>¿Cuál es el estado de mi solicitud?</summary>
+                    <div class="status">
+                        <h3>¿Ya enviaste tu solicitud?</h3>
+                        <p>Ingresá tu DNI (o el documento que usaste) para ver en qué estado está.</p>
+                        <form class="status__form" data-status-form>
+                            <label class="sr-only" for="status-dni">DNI o documento</label>
+                            <input id="status-dni" required autocapitalize="characters" placeholder="DNI o documento">
+                            <button type="submit" class="btn btn--yellow">Consultar</button>
+                        </form>
+                        <p class="status__result" data-status-result aria-live="polite"></p>
+                    </div>
+                </details>
                 <details>
                     <summary>¿Cuánto cuesta?</summary>
                     <p>Nada. Los FlashLabs de TUMO son gratuitos.</p>

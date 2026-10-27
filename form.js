@@ -225,7 +225,9 @@ async function runVerify(dni) {
     }, SLOW_MS);
 
     // Sin horario elegido todavía se verifica con el primero: el requisito es el mismo en todos los grupos
-    const forId = (act || grupos[0]).id;
+    const target = act || grupos[0];
+    if (!target) return; // la actividad no cargó: el formulario no está a la vista
+    const forId = target.id;
     const r = await apiCall({ action: "verificar", dni, actividad: forId });
     clearTimeout(slow);
     if (seq !== verify.seq) return; // el DNI o el horario cambiaron mientras tanto
@@ -238,8 +240,6 @@ async function runVerify(dni) {
     renderRequirements(r);
 }
 
-// DNI, pasaporte u otro documento: sólo letras y números ("40.123.456" → "40123456", "aab 123" → "AAB123")
-const cleanDoc = (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
 const MIN_DOC = 6;
 
 dniInput.addEventListener("input", () => {
@@ -345,7 +345,7 @@ form.addEventListener("submit", async (e) => {
 
     if (result.status === "activa") {
         return formError("Este documento ya tiene una solicitud activa. Si recién la enviaste, ya quedó registrada: " +
-            '<a href="#estado">consultá su estado</a>.');
+            '<a href="index.html#estado">consultá su estado</a>.');
     }
     if (result.status === "timeout") {
         return formError("No pudimos confirmar el envío porque está tardando más de lo esperado. " +
@@ -367,28 +367,5 @@ function showDone(result) {
     show("done");
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
-
-// ---------- Consultar estado ----------
-
-$("[data-status-form]").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const out = $("[data-status-result]");
-    const dni = cleanDoc($("#status-dni").value);
-    out.className = "status__result";
-    out.textContent = "Buscando…";
-    const r = await apiCall({ action: "estado", dni });
-    if (r.status === "ok") {
-        out.textContent = r.mensaje;
-        out.classList.add(r.estado === "Confirmada" ? "is-ok" : "is-warn");
-    } else if (r.status === "no_encontrado") {
-        out.textContent = "No encontramos solicitudes con ese documento.";
-        out.classList.add("is-warn");
-    } else {
-        out.textContent = r.status === "timeout"
-            ? "Está tardando más de lo esperado. Probá de nuevo en un rato."
-            : "No pudimos consultar ahora. Probá de nuevo en un rato.";
-        out.classList.add("is-warn");
-    }
-});
 
 init();

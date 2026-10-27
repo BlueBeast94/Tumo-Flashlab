@@ -32,6 +32,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
+/* Al ir a una sección (#actividades, #faq…) el título no queda tapado por el menú fijo de arriba */
+main [id] { scroll-margin-top: 80px; }
 
 body {
     font-family: var(--font);
@@ -406,7 +408,8 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     background: rgba(0, 0, 0, 0.18);
 }
 .card--yellow .card__media { background: rgba(0, 0, 0, 0.08); }
-.card__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.card__media img,
+.card__media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(var(--zoom, 1)); }
 /* Las animaciones del panel son más grandes: se achican para la tarjeta */
 .card__media > div:not(.card__caption) { transform: scale(0.7); transform-origin: center 35%; }
 .card__media > .art-game { transform: none; position: absolute; inset: 0; }
@@ -564,7 +567,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     background: var(--panel-bg, var(--blue));
 }
 .lab-panel__media img,
-.lab-panel__media video { width: 100%; height: 100%; object-fit: cover; }
+.lab-panel__media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .lab-panel--blue   { --panel-bg: var(--blue);   --panel-fg: var(--white); }
 .lab-panel--red    { --panel-bg: var(--red);    --panel-fg: var(--white); }
 .lab-panel--yellow { --panel-bg: var(--yellow); --panel-fg: var(--ink); }
@@ -1168,6 +1171,11 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 }
 .faq details[open] summary::after { transform: rotate(45deg); }
 .faq details p { margin-top: 0.8rem; color: var(--muted); }
+/* "¿Cuál es el estado de mi solicitud?": al abrirse muestra la consulta por documento */
+.faq__status { scroll-margin-top: 90px; }
+.faq__status .status { margin-top: 1rem; }
+.faq__status .status h3 { font-size: 1.25rem; }
+.faq__status .status__form input { font-size: 16px; } /* evita el zoom automático de iOS */
 
 /* ---------- CTA ---------- */
 .cta {

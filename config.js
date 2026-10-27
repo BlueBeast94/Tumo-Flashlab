@@ -82,6 +82,9 @@ function parseDias(text) {
 const CLOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
 
 // size: "sm" (tarjetas, diálogo) | "md" (panel, formulario)
+// DNI, pasaporte u otro documento: sólo letras y números ("40.123.456" → "40123456", "aab 123" → "AAB123")
+const cleanDoc = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+
 // ID de la actividad sin el grupo: "musica-cine-b" → "musica-cine" (los grupos comparten todo menos el horario)
 const baseId = (act) => String(act.id).replace(/-[a-z]$/, "");
 

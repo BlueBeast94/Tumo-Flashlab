@@ -45,6 +45,11 @@ function joinGroups(rows) {
 const signupUrl = (act) => `inscripcion.html?actividad=${encodeURIComponent(act.id)}`;
 
 // Color y animación de cada actividad (los grupos A y B comparten). La clave es el ID sin "-a"/"-b".
+//   color:  color de la tarjeta y del panel
+//   art:    animación dibujada con código (ART, más abajo), si no hay imagen
+//   imagen: GIF, foto o video propio (archivo en la carpeta img/). Tiene prioridad sobre "art".
+//           La columna "Imagen" de la planilla, si está completa, le gana a esta.
+//   zoom:   (opcional) agranda la imagen en la tarjeta, si el dibujo queda chico (1.5 = 50% más grande)
 const LOOKS = {
     "musica-cine":      { color: "blue",   art: "blue" },
     "tumogotchi":       { color: "purple", art: "red" },
@@ -53,7 +58,7 @@ const LOOKS = {
     "carreras-iot":     { color: "green",  art: "red" },
     "sonido-codigo":    { color: "teal",   art: "blue" },
     "personajes-ia-3d": { color: "pink",   art: "yellow" },
-    "tumo-tank":        { color: "red",    art: "dark" },
+    "tumo-tank":        { color: "red",    art: "dark", imagen: "img/Logomotion.gif", zoom: 1.5 },
 };
 
 // Una actividad nueva que no está en LOOKS toma un color por orden
@@ -65,6 +70,17 @@ function lookOf(act) {
 }
 const colorOf = (act) => lookOf(act).color;
 const artOf = (act) => ART[lookOf(act).art];
+
+// Encabezado de la tarjeta y del panel: imagen/GIF/video propio, o la animación de código
+function mediaOf(act, lazy = false) {
+    const src = act.imagen || lookOf(act).imagen;
+    if (!src) return artOf(act);
+    const url = escapeHtml(src);
+    const zoom = !act.imagen && lookOf(act).zoom ? ` style="--zoom:${Number(lookOf(act).zoom)}"` : "";
+    return /\.(mp4|webm)$/i.test(src)
+        ? `<video src="${url}" autoplay muted loop playsinline${zoom}></video>`
+        : `<img src="${url}" alt=""${lazy ? ' loading="lazy"' : ""}${zoom}>`;
+}
 
 // Animaciones del encabezado del panel, hasta que cada actividad tenga su imagen
 const ART = {
@@ -123,7 +139,7 @@ function renderCards() {
     wrap.innerHTML = actividades.map((act) => `
         <article class="card card--${colorOf(act)} ${act.estado === "cerrada" ? "is-closed" : ""}">
             <div class="card__media">
-                ${act.imagen ? `<img src="${escapeHtml(act.imagen)}" alt="" loading="lazy">` : artOf(act)}
+                ${mediaOf(act, true)}
                 <span class="card__badge state state--${act.estado}">${CARD_STATE[act.estado]}</span>
             </div>
             <h3>
@@ -202,9 +218,7 @@ function openPanel(id) {
     const color = colorOf(act);
 
     panel.className = `lab-panel lab-panel--${color}`;
-    $("[data-lab-media]").innerHTML = act.imagen
-        ? `<img src="${escapeHtml(act.imagen)}" alt="">`
-        : artOf(act);
+    $("[data-lab-media]").innerHTML = mediaOf(act);
     $("[data-lab-kicker]").textContent = act.tipo; // sin el grupo: `${act.tipo} · Grupo ${act.grupo}`
     $("[data-lab-title]").textContent = act.nombre;
     const pocas = act.estado === "abierta" && act.libres > 0 && act.libres <= 5;
@@ -233,5 +247,42 @@ function initPanel() {
     });
 }
 
+// ---------- Consultar el estado de una solicitud (en las preguntas frecuentes) ----------
+
+function initStatus() {
+    $("[data-status-form]").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const out = $("[data-status-result]");
+        const dni = cleanDoc($("#status-dni").value);
+        out.className = "status__result";
+        out.textContent = "Buscando…";
+        const r = await apiCall({ action: "estado", dni });
+        if (r.status === "ok") {
+            out.textContent = r.mensaje;
+            out.classList.add(r.estado === "Confirmada" ? "is-ok" : "is-warn");
+        } else if (r.status === "no_encontrado") {
+            out.textContent = "No encontramos solicitudes con ese documento.";
+            out.classList.add("is-warn");
+        } else {
+            out.textContent = r.status === "timeout"
+                ? "Está tardando más de lo esperado. Probá de nuevo en un rato."
+                : "No pudimos consultar ahora. Probá de nuevo en un rato.";
+            out.classList.add("is-warn");
+        }
+    });
+
+    // Los links a #estado (botón "Consultar mi solicitud", mensajes del formulario) abren la pregunta
+    const openStatus = () => {
+        if (location.hash !== "#estado") return;
+        $("#estado").open = true;
+        $("#status-dni").focus({ preventScroll: true });
+    };
+    window.addEventListener("hashchange", openStatus);
+    // Si ya estaba en #estado, el click no cambia el hash: se abre igual
+    $$('a[href="#estado"]').forEach((a) => a.addEventListener("click", () => setTimeout(openStatus)));
+    openStatus();
+}
+
 initPanel();
+initStatus();
 loadCartelera();
