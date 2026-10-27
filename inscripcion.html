@@ -64,13 +64,15 @@
                         <span class="field__hint" data-hint="nombre"></span>
                     </label>
                     <label class="field field--wide" data-field="dni">
-                        <span>DNI</span>
-                        <input name="dni" required inputmode="numeric" maxlength="10" autocomplete="off" placeholder="Sin puntos ni espacios">
+                        <span data-doc-label>DNI</span>
+                        <input name="dni" required inputmode="numeric" maxlength="16" autocomplete="off" autocapitalize="characters" placeholder="Sin puntos ni espacios">
                         <span class="verify" data-verify aria-live="polite">
                             <span class="verify__icon" aria-hidden="true"></span>
                             <span class="verify__text" data-verify-text>Lo usamos para identificarte en los registros de TUMO.</span>
                         </span>
                     </label>
+                    <button type="button" class="doc-toggle" data-doc-toggle>Tengo pasaporte u otro documento</button>
+                    <div class="req-check" data-req aria-live="polite" hidden></div>
                 </div>
             </fieldset>
 
@@ -102,10 +104,10 @@
         <section class="status-wrap" id="estado">
             <div class="status">
                 <h3>¿Ya enviaste tu solicitud?</h3>
-                <p>Ingresá tu DNI para ver en qué estado está.</p>
+                <p>Ingresá tu DNI (o el documento que usaste) para ver en qué estado está.</p>
                 <form class="status__form" data-status-form>
-                    <label class="sr-only" for="status-dni">DNI</label>
-                    <input id="status-dni" inputmode="numeric" required placeholder="DNI sin puntos">
+                    <label class="sr-only" for="status-dni">DNI o documento</label>
+                    <input id="status-dni" required autocapitalize="characters" placeholder="DNI o documento">
                     <button type="submit" class="btn btn--yellow">Consultar</button>
                 </form>
                 <p class="status__result" data-status-result aria-live="polite"></p>

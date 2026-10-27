@@ -110,13 +110,13 @@ function verifyMessage(r) {
     switch (r.status) {
         case "ok":
             return ["ok", r.lugar === "espera"
-                ? "DNI verificado. No quedan vacantes: vas a entrar en lista de espera."
-                : "DNI verificado."];
+                ? "Documento verificado. No quedan vacantes: vas a entrar en lista de espera."
+                : "Documento verificado."];
         case "sin_verificar":
-            return ["warn", `DNI verificado, pero no pudimos comprobar el requisito${r.motivo ? ` (${escapeHtml(r.motivo)})` : ""}. ` +
+            return ["warn", `Documento verificado, pero no pudimos comprobar el requisito${r.motivo ? ` (${escapeHtml(r.motivo)})` : ""}. ` +
                 "Podés enviar la solicitud: el equipo de TUMO lo va a revisar antes de confirmarla."];
         case "no_encontrado":
-            return ["error", `No encontramos este DNI en los registros de TUMO. Revisá que esté bien escrito. Si es correcto, ${contactText()}.`];
+            return ["error", `No encontramos este documento en los registros de TUMO. Revisá que esté bien escrito. Si es correcto, ${contactText()}.`];
         case "activa":
             return ["error", `Este documento ya tiene una inscripción activa. Cada estudiante puede solicitar una sola actividad. Para cambiarla, ${contactText()}.`];
         case "no_cumple":
@@ -126,19 +126,54 @@ function verifyMessage(r) {
         case "actividad_invalida":
             return ["error", "Esta actividad ya no está disponible. Elegí otra en la cartelera."];
         case "dni_invalido":
-            return ["error", "El DNI tiene que tener 7 u 8 números."];
+            return ["error", "El documento tiene que tener entre 6 y 12 letras o números."];
         case "timeout":
             return ["error", `La verificación está tardando más de lo esperado. ${retryButton} o actualizá la página.`];
         case "demasiados_intentos":
             return ["error", `Hiciste muchas consultas seguidas. Esperá un minuto y ${retryButton.replace("Probar de nuevo", "probá de nuevo")}.`];
         default:
-            return ["error", `No pudimos verificar el DNI en este momento. ${retryButton}`];
+            return ["error", `No pudimos verificar el documento en este momento. ${retryButton}`];
     }
+}
+
+// Detalle del requisito para ese documento: cada curso con su estado y el resultado final
+const REQ_LABEL = { ok: "Aprobado", no: "No aprobado", unknown: "Sin datos" };
+
+function renderRequirements(r) {
+    const box = $("[data-req]");
+    const req = r && r.requisitos;
+    if (!req || !req.cursos || !req.cursos.length) {
+        box.hidden = true;
+        box.innerHTML = "";
+        return;
+    }
+    const several = req.cursos.length > 1;
+    const hint = several ? (req.modo === "any" ? "alcanza con uno" : "hacen falta todos") : "";
+    const verdict = {
+        ok: ["ok", "¡Cumplís el requisito! Podés solicitar vacante en esta actividad."],
+        no_cumple: ["no", "Todavía no cumplís el requisito de esta actividad."],
+    }[r.status] || ["unknown", req.sinHistorial
+        ? "No encontramos tu historial de cursos. Podés enviar la solicitud y el equipo de TUMO lo va a revisar."
+        : "No pudimos confirmar todos los cursos. Podés enviar la solicitud y el equipo de TUMO lo va a revisar."];
+
+    box.innerHTML = `
+        <p class="req-check__title">Requisitos${hint ? ` <span>(${hint})</span>` : ""}</p>
+        <ul class="req-check__list">
+            ${req.cursos.map((c) => `
+                <li class="req req--${c.estado}">
+                    <span class="req__icon" aria-hidden="true"></span>
+                    <span class="req__name">${escapeHtml(c.curso)}</span>
+                    <span class="req__state">${REQ_LABEL[c.estado] || REQ_LABEL.unknown}</span>
+                </li>`).join("")}
+        </ul>
+        <p class="req-check__verdict req--${verdict[0]}">${verdict[1]}</p>`;
+    box.hidden = false;
 }
 
 async function runVerify(dni) {
     const seq = ++verify.seq;
     verify.result = null;
+    renderRequirements(null);
     setVerify("checking", "Verificando…");
     const slow = setTimeout(() => {
         if (seq === verify.seq) setVerify("checking", "Verificando… está tardando más de lo esperado.");
@@ -151,21 +186,39 @@ async function runVerify(dni) {
     verify.result = r;
     verify.dni = dni;
     setVerify(...verifyMessage(r));
+    renderRequirements(r);
 }
 
+// DNI, pasaporte u otro documento: sólo letras y números ("40.123.456" → "40123456", "aab 123" → "AAB123")
+const cleanDoc = (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+const MIN_DOC = 6;
+
 dniInput.addEventListener("input", () => {
-    const dni = dniInput.value.replace(/\D/g, "").slice(0, 8);
-    dniInput.value = dni;
+    const dni = cleanDoc(dniInput.value);
+    if (dniInput.value !== dni) dniInput.value = dni;
     clearTimeout(verify.timer);
     verify.seq++; // descarta cualquier verificación en curso
     verify.result = null;
+    renderRequirements(null);
 
-    if (dni.length < 7) {
-        setVerify("idle", dni.length ? "El DNI tiene 7 u 8 números." : DNI_HINT);
+    if (dni.length < MIN_DOC) {
+        setVerify("idle", dni.length ? "Seguí escribiendo tu documento…" : DNI_HINT);
         return;
     }
+    // Un DNI suele tener 7-8 números: con menos, esperamos a que deje de escribir un poco más
+    const wait = /^\d+$/.test(dni) && dni.length < 7 ? 1500 : 700;
     setVerify("checking", "Verificando…");
-    verify.timer = setTimeout(() => runVerify(dni), 600);
+    verify.timer = setTimeout(() => runVerify(dni), wait);
+});
+
+// Teclado numérico para DNI; con pasaporte u otro documento pasa al teclado completo
+$("[data-doc-toggle]").addEventListener("click", (e) => {
+    const other = dniInput.inputMode === "numeric";
+    dniInput.inputMode = other ? "text" : "numeric";
+    dniInput.placeholder = other ? "Letras y números, sin espacios" : "Sin puntos ni espacios";
+    $("[data-doc-label]").textContent = other ? "Pasaporte u otro documento" : "DNI";
+    e.currentTarget.textContent = other ? "Tengo DNI" : "Tengo pasaporte u otro documento";
+    dniInput.focus();
 });
 
 $("[data-verify]").addEventListener("click", (e) => {
@@ -207,10 +260,10 @@ form.addEventListener("submit", async (e) => {
     }
     const r = verify.result;
     if (!r || verify.dni !== dniInput.value) {
-        if (dniInput.value.length < 7) setVerify("error", "Escribí tu DNI (7 u 8 números).");
-        return formError(dniInput.value.length >= 7 ? "Esperá a que termine la verificación del DNI." : "Revisá tu DNI.");
+        if (dniInput.value.length < MIN_DOC) setVerify("error", "Escribí tu DNI o documento.");
+        return formError(dniInput.value.length >= MIN_DOC ? "Esperá a que termine la verificación del documento." : "Revisá tu documento.");
     }
-    if (!["ok", "sin_verificar"].includes(r.status)) return formError("Revisá el mensaje del DNI antes de enviar.");
+    if (!["ok", "sin_verificar"].includes(r.status)) return formError("Revisá el mensaje del documento antes de enviar.");
     if (!form.confirmo.checked) {
         $("[data-field='confirmo']").classList.add("is-invalid");
         return formError("Marcá la confirmación para enviar tu solicitud.");
@@ -261,7 +314,7 @@ function showDone(result) {
 $("[data-status-form]").addEventListener("submit", async (e) => {
     e.preventDefault();
     const out = $("[data-status-result]");
-    const dni = $("#status-dni").value.replace(/\D/g, "");
+    const dni = cleanDoc($("#status-dni").value);
     out.className = "status__result";
     out.textContent = "Buscando…";
     const r = await apiCall({ action: "estado", dni });
@@ -269,7 +322,7 @@ $("[data-status-form]").addEventListener("submit", async (e) => {
         out.textContent = r.mensaje;
         out.classList.add(r.estado === "Confirmada" ? "is-ok" : "is-warn");
     } else if (r.status === "no_encontrado") {
-        out.textContent = "No encontramos solicitudes con ese DNI.";
+        out.textContent = "No encontramos solicitudes con ese documento.";
         out.classList.add("is-warn");
     } else {
         out.textContent = r.status === "timeout"

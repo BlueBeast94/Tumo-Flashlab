@@ -35,7 +35,9 @@ Web (Vercel) ──▶ /api/inscripcion (Vercel) ──▶ Apps Script (Code.gs)
 |---|---|
 | **Resumen** | Vacantes por actividad y grupo (se calcula sola, no se edita). |
 | **Actividades** | La cartelera. `Habilitado` = SÍ/NO (los grupos B arrancan en NO). `Inscripción` = Abierta / Lista de espera / Cerrada. `Capacidad` por grupo. `Docentes` no se muestra en la web. |
-| **Estudiantes** | La bajada del 360. Hoy tiene 5 estudiantes de prueba (DNI 40000001 a 40000005): reemplazalos por la bajada real. |
+| **Estudiantes** | **No se edita a mano**: la llena la sincronización (ver sección 3b). Documento, nombre, mails de contacto, estado del 360 y una columna por curso (Music_I, Programming_II…). |
+| **Estudiantes manuales** | Estudiantes que todavía no están en el origen (o para corregir uno). Mismas columnas; se suman en la próxima sincronización. |
+| **Sync** | Reporte de cada sincronización: cuántos estudiantes, cuántos con cursos del 360, sin TUMO ID, duplicados. |
 | **Solicitudes** | Una fila por solicitud. **El equipo cambia la columna `Estado`** (menú desplegable). |
 | **Historial** | Cada cambio de estado: quién, cuándo, antes y después. No editar. |
 | **Mensajes** | Textos de los mails. Se pueden editar; `{nombre}`, `{actividad}`, `{grupo}`, `{dias}`, `{horario}`, `{contacto}` se reemplazan solos. |
@@ -45,15 +47,56 @@ Web (Vercel) ──▶ /api/inscripcion (Vercel) ──▶ Apps Script (Code.gs)
 
 **Modo prueba:** en Config, *"Modo prueba: enviar todos los mails a"* tiene tu mail. Mientras esté lleno, **todos** los mails te llegan a vos (con el destinatario real en el asunto). Vacialo cuando se lance.
 
+## 3b. Estudiantes reales (sincronización)
+
+La pestaña Estudiantes se arma sola a partir de la planilla de inscripciones de TUMO:
+
+```
+pestaña "back"  (documento → TUMO ID, nombre, apellido, mails reales)
+        └── TUMO ID ──► pestaña "360"  (estado y cursos: Music_I, Programming_II, …)
+```
+
+- El **documento** (DNI, pasaporte u otro) identifica al estudiante. El TUMO ID sólo se usa para traer los cursos.
+- Se copian **sólo** las columnas que necesita el sistema. Direcciones, fechas de nacimiento y datos de los adultos no se copian.
+- Los mails son los de "back" (columnas F y G), nunca el mail del 360.
+- Si un documento aparece dos veces, se queda la fila que tiene datos del 360 (o la más reciente).
+
+**Primera vez:**
+1. En Config, `Origen estudiantes: planilla (ID o link)` → pegá el link de la planilla de inscripciones. El dueño de este script tiene que poder abrirla; **no hace falta (ni conviene) que sea pública**.
+2. Revisá las letras de las columnas de "back" en Config (documento P, tipo O, TUMO ID L, apellido M, nombre N, mail F, mail 2 G). Si alguien agrega o mueve columnas en "back", se cambia la letra acá.
+3. Menú **FlashLabs → Sincronizar estudiantes ahora**. Google va a pedir permiso para leer la otra planilla: aceptalo.
+4. Mirá la pestaña **Sync**: cuántos estudiantes cargó y cuántos tienen cursos del 360.
+
+Después se sincroniza **sola todas las noches (3 AM)**. Si alguien se inscribe en TUMO durante el día, usá el menú para no esperar.
+
+**¿Por qué un estudiante no pasa?** Menú **FlashLabs → Revisar un documento…** y escribí su DNI. Muestra paso a paso:
+1. si el documento está en "back",
+2. si su TUMO ID está en el 360,
+3. el valor de cada curso del requisito,
+4. el resultado en cada FlashLab (✅ / ⛔ / ⚠️) y si ya tiene una solicitud activa.
+
+La columna **Datos 360** de Estudiantes también lo resume: `OK`, `Sin TUMO ID en back` o `TUMO ID no está en el 360`.
+
 ## 4. Reglas que aplica el sistema
 
-- **Identidad:** el DNI tiene que estar en Estudiantes. El nombre se compara sin tildes ni mayúsculas (alcanza con un nombre y un apellido). Nunca se muestra el nombre registrado.
-- **Una sola solicitud activa por DNI.** Activas: Recibida, En validación, Pendiente de confirmación, Confirmada, Lista de espera, Vacante ofrecida. Si se cancela, puede volver a inscribirse.
+- **Identidad:** el documento (DNI, pasaporte u otro; 6 a 12 letras o números) tiene que estar en Estudiantes. El nombre se guarda como lo escribe el estudiante, pero **no se compara**.
+- **Una sola solicitud activa por documento.** Activas: Recibida, En validación, Pendiente de confirmación, Confirmada, Lista de espera, Vacante ofrecida. Si se cancela, puede volver a inscribirse.
+- **Estado del 360:** no filtra; cualquier estudiante puede pedir vacante.
 - **Vacantes:** una solicitud nueva queda *Pendiente de confirmación* mientras Pendientes + Confirmadas + Ofrecidas < Capacidad. Si no, entra en *Lista de espera*. Recibir una solicitud **no** la confirma: confirma el equipo.
-- **Requisitos:** en Actividades, `Requisito` es el texto que ve el estudiante y `Columna requisito` es el nombre de una columna de Estudiantes (ej. "Robótica completada").
-  - SÍ / x / completado → cumple.
-  - NO → no cumple: se bloquea y se muestra el motivo.
-  - Vacío, o la columna no existe → **no se puede verificar**: se registra como *En validación* para revisar a mano.
+- **Requisitos:** en Actividades, `Requisito` es el texto que ve el estudiante y `Columna requisito` dice qué cursos del 360 se miran:
+  - `Music_I` → hace falta ese curso.
+  - `Programming_II o Music_II` → alcanza con uno.
+  - `Graphic_Design_I y 3D_Modeling_I` → hacen falta todos.
+  - `Valor requerido`: vacío o `Completed` = haberlo aprobado. `Prerequisite Done` = alcanza con estar habilitado para cursarlo.
+
+  | Valor del 360 | Resultado |
+  |---|---|
+  | Completed / Completed ⭐ | ✅ cumple |
+  | Prerequisite Done | ✅ sólo si Valor requerido = Prerequisite Done; si no, ⛔ |
+  | Prerequisite Not Done | ⛔ no cumple: se bloquea y se muestra el motivo |
+  | Prerequisite Conditional, o sin datos del 360 (sin TUMO ID) | ⚠️ no se puede verificar → se registra *En validación* |
+
+- **Descripciones y requisitos** de "Flash Labs" ya están cargados en el código: menú **FlashLabs → Actualizar descripciones y requisitos** los vuelca en Actividades (pisa nombre, descripción, requisito, regla, capacidad y herramientas).
 
 ## 5. La web
 

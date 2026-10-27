@@ -44,8 +44,9 @@ async function buildSystemPrompt() {
             `  Horario: ${a.horario}. Días: ${a.dias}. Capacidad: ${a.capacidad}.`,
             `  Requisitos: ${a.requisito || "sin requisitos previos"}.`,
             a.descripcion ? `  Descripción: ${a.descripcion}` : "  Descripción: todavía no publicada.",
+            a.herramientas ? `  Herramientas que se usan: ${a.herramientas}.` : "",
             a.estado === "cerrada" ? "  No acepta solicitudes." : `  Link para solicitar vacante: /inscripcion.html?actividad=${a.id}`,
-        ].join("\n")).join("\n")
+        ].filter(Boolean).join("\n")).join("\n")
         : "La cartelera no está disponible en este momento: sugerí mirarla en /index.html#actividades.";
 
     return `Sos "Flashy", el asistente virtual de los ${EVENT.name} de ${EVENT.center}.

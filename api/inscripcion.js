@@ -45,7 +45,8 @@ function send(res, status, data, headers = {}) {
 }
 
 const clean = (v, max = 80) => String(v || "").slice(0, max);
-const digits = (v) => String(v || "").replace(/\D/g, "").slice(0, 9);
+// Documento: DNI, pasaporte u otro → sólo letras y números en mayúsculas
+const docId = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
 
 module.exports = async function handler(req, res) {
     if (!isConfigured()) {
@@ -60,7 +61,7 @@ module.exports = async function handler(req, res) {
         if (rateLimited(ip, action)) return send(res, 429, { status: "demasiados_intentos" });
 
         const params = { action };
-        if (action !== "actividades") params.dni = digits(url.searchParams.get("dni"));
+        if (action !== "actividades") params.dni = docId(url.searchParams.get("dni"));
         if (action === "verificar") params.actividad = clean(url.searchParams.get("actividad"), 40);
         const data = await callAppsScript(params);
         const cache = action === "actividades" && data.status === "ok"
@@ -75,7 +76,7 @@ module.exports = async function handler(req, res) {
         try { body = await readBody(req); } catch { return send(res, 400, { status: "error" }); }
         const data = await callAppsScript(null, {
             action: "solicitud",
-            dni: digits(body.dni),
+            dni: docId(body.dni),
             nombre: clean(body.nombre),
             actividad: clean(body.actividad, 40),
             confirmado: body.confirmado === true,

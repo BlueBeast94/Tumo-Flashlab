@@ -158,6 +158,8 @@ function openPanel(id) {
     $("[data-lab-sched]").innerHTML = scheduleHtml(act, "md");
     $("[data-lab-capacidad]").textContent = `${act.capacidad} vacantes`;
     $("[data-lab-requisito]").textContent = requisitoText(act);
+    $("[data-lab-herramientas]").textContent = act.herramientas || "";
+    $("[data-lab-tools-box]").hidden = !act.herramientas;
 
     const cta = $("[data-lab-signup]");
     cta.hidden = act.estado === "cerrada";

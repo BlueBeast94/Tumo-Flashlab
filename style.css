@@ -549,7 +549,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .lab-panel__state { margin-top: 0.8rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
 .lab-panel__state .state { background: var(--light); }
 .lab-panel__few { color: var(--red); font-weight: 800; font-size: 0.9rem; }
-.lab-panel__cta[hidden] { display: none; }
+.lab-panel__cta[hidden], .info[hidden] { display: none; }
 .lab-panel__when {
     display: grid;
     gap: 0.7rem;
@@ -869,6 +869,68 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     text-decoration: underline;
     cursor: pointer;
 }
+
+.doc-toggle {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: -0.4rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--blue);
+    font: 700 0.85rem var(--font);
+    text-decoration: underline;
+    cursor: pointer;
+}
+/* Detalle del requisito para el documento ingresado */
+.req-check {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 0.6rem;
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    border: 2px solid var(--light);
+}
+.req-check[hidden] { display: none; }
+.req-check__title { font-weight: 800; font-size: 0.95rem; }
+.req-check__title span { font-weight: 600; color: var(--muted); }
+.req-check__list { list-style: none; display: grid; gap: 0.35rem; }
+.req {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 12px;
+    background: var(--light);
+    font-weight: 700;
+    font-size: 0.92rem;
+}
+.req__icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    color: var(--white);
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+.req__name { flex: 1; }
+.req__state { font-size: 0.8rem; font-weight: 800; }
+.req--ok .req__icon { background: #1fa463; }
+.req--ok .req__icon::before { content: "✓"; }
+.req--ok .req__state { color: #11703f; }
+.req--no .req__icon { background: var(--red); }
+.req--no .req__icon::before { content: "✕"; }
+.req--no .req__state { color: #a8341a; }
+.req--unknown .req__icon { background: var(--yellow); color: var(--ink); }
+.req--unknown .req__icon::before { content: "?"; }
+.req--unknown .req__state { color: #7a5300; }
+.req-check__verdict { padding: 0.7rem 0.9rem; border-radius: 12px; font-weight: 700; font-size: 0.92rem; }
+.req-check__verdict.req--ok { background: #e3f6ec; color: #11703f; }
+.req-check__verdict.req--no { background: #fdece7; color: #a8341a; }
+.req-check__verdict.req--unknown { background: #fdf1d8; color: #7a5300; }
 
 .field__hint { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 .field__hint:empty { display: none; }
