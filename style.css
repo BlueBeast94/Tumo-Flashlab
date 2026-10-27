@@ -59,6 +59,8 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 }
 .hand--red  { color: var(--red); }
 .hand--blue { color: var(--blue); }
+/* Mantiene la letra manuscrita pegada al resto de la palabra */
+.nowrap { white-space: nowrap; }
 
 /* ---------- Botones ---------- */
 .btn {
