@@ -4,7 +4,7 @@
 // ==========================================================
 
 (() => {
-    const API = "/api/chat";
+    const API = `${API_BASE}/api/chat`; // API_BASE viene de config.js
     const GREETING = "¡Hola! Soy Flashy 🤖 el asistente del Flash Lab. Preguntame lo que quieras sobre las actividades, los horarios o la inscripción.";
     const SUGGESTIONS = ["¿Cuándo y dónde es?", "¿Tiene costo?", "¿Qué labs hay?", "¿Cómo me inscribo?"];
     const ERRORS = {

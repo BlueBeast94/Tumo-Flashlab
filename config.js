@@ -4,7 +4,14 @@
 // El chatbot también usa este archivo.
 // ==========================================================
 
-const API_URL = "/api/inscripcion";
+// Abierto con un servidor local sin /api (Live Server de VS Code, etc.): se usa la API publicada.
+// 5173 es el servidor de pruebas del proyecto, que sí tiene /api. (api/chat.js también lee este archivo: ahí no hay location.)
+// También sirve abriendo index.html con doble clic (file://).
+const API_BASE = typeof location !== "undefined" && (location.protocol === "file:" ||
+    (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && location.port !== "5173"))
+    ? "https://tumoflashlab.vercel.app"
+    : "";
+const API_URL = `${API_BASE}/api/inscripcion`;
 
 const EVENT = {
     name: "FlashLabs de diciembre",

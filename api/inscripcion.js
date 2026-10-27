@@ -11,6 +11,7 @@
 // ==========================================================
 
 const { callAppsScript, isConfigured } = require("./_appsScript");
+const { handleCors } = require("./_cors");
 
 // Límite por IP y por minuto (en memoria: es aproximado, alcanza para frenar abusos simples)
 const LIMITS = { actividades: 60, verificar: 30, estado: 20, solicitud: 6 };
@@ -49,6 +50,7 @@ const clean = (v, max = 80) => String(v || "").slice(0, max);
 const docId = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
 
 module.exports = async function handler(req, res) {
+    if (handleCors(req, res)) return;
     if (!isConfigured()) {
         return send(res, 503, { status: "no_configurado" });
     }

@@ -13,6 +13,7 @@ const MAX_MESSAGES = 10;   // historial que se manda al modelo
 const MAX_CHARS = 500;     // largo máximo de cada mensaje del usuario
 
 const { callAppsScript, isConfigured } = require("./_appsScript");
+const { handleCors } = require("./_cors");
 
 // Lee config.js (el mismo archivo que usa el sitio) para que el bot y la página digan lo mismo
 function loadEvent() {
@@ -97,6 +98,7 @@ function send(res, status, data) {
 }
 
 module.exports = async function handler(req, res) {
+    if (handleCors(req, res)) return;
     if (req.method !== "POST") return send(res, 405, { error: "Method not allowed" });
     if (!process.env.GROQ_API_KEY) return send(res, 500, { error: "missing_key" });
 
