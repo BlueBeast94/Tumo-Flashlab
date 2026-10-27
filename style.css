@@ -867,33 +867,45 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .chosen h2 { margin-top: 0.4rem; font-size: clamp(1.8rem, 5vw, 2.4rem); }
 .chosen__meta { margin-top: 0.3rem; color: var(--muted); font-weight: 600; }
 .chosen__sched { margin-top: 1.2rem; }
-/* Elegir horario (grupos A y B) */
-.horario { margin-top: 1.2rem; padding: 0; border: 0; min-width: 0; }
-.horario[hidden] { display: none; }
-.horario legend { padding: 0; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--red); }
-.horario__opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; }
-.horario__opt {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.85rem 1rem;
-    border: 2px solid var(--light);
-    border-radius: 18px;
-    background: var(--white);
-    cursor: pointer;
-    transition: border-color 0.15s ease, background 0.15s ease;
+/* Requisitos: un curso por línea con ✓ */
+.req-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; font-weight: 700; }
+.req-list li { display: flex; align-items: baseline; gap: 0.45em; }
+.req-list li::before {
+    content: "✓";
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 1.25em;
+    height: 1.25em;
+    border-radius: 50%;
+    background: #1fa463;
+    color: var(--white);
+    font-size: 0.8em;
+    font-weight: 900;
+    transform: translateY(-0.05em);
 }
-.horario__opt:hover { border-color: rgba(39, 48, 231, 0.4); }
-.horario__opt input { position: absolute; opacity: 0; pointer-events: none; }
-.horario__opt:has(input:checked) { border-color: var(--blue); background: rgba(39, 48, 231, 0.06); box-shadow: 0 0 0 1px var(--blue); }
-.horario__opt:has(input:focus-visible) { outline: 3px solid var(--yellow); outline-offset: 2px; }
-.horario__time { display: inline-flex; align-items: center; gap: 0.45em; font-size: 1.15rem; font-weight: 900; }
-.horario__time svg { width: 1em; height: 1em; }
-.horario__state { background: var(--light); }
-.horario.is-invalid .horario__opt { border-color: var(--red); }
+.req-list__hint { margin-top: 0.35rem; font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+.chosen__req-list { flex: 1 1 100%; }
+
+/* Elegir horario (grupos A y B): lista desplegable */
+.horario { margin-top: 1.2rem; display: grid; gap: 0.5rem; max-width: 360px; }
+.horario[hidden] { display: none; }
+.horario__label { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--red); }
+.horario__select {
+    appearance: none;
+    width: 100%;
+    padding: 0.85rem 2.8rem 0.85rem 1rem;
+    border: 2px solid var(--light);
+    border-radius: 16px;
+    background: var(--light) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 1rem center / 1.1rem;
+    color: var(--ink);
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+.horario__select:focus-visible { outline: none; border-color: var(--blue); background-color: var(--white); }
+.horario.is-invalid .horario__select { border-color: var(--red); background-color: #fff4f1; }
 .horario__msg { margin-top: 0.5rem; color: var(--red); font-weight: 700; font-size: 0.9rem; }
 .horario__msg:empty { display: none; }
 .confirm__hint { margin-top: 0.6rem; font-weight: 700; font-size: 0.9rem; color: var(--muted); }
@@ -1222,6 +1234,8 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 }
 .chat.is-open .chat__backdrop { opacity: 1; pointer-events: auto; }
 html.chat-open, html.chat-open body { overflow: hidden; }
+/* Con un panel o diálogo abierto (detalle de la actividad, confirmación) la página de atrás no se mueve */
+html:has(dialog[open]), html:has(dialog[open]) body { overflow: hidden; }
 
 /* Robot */
 .bot { position: relative; display: inline-grid; justify-items: center; }

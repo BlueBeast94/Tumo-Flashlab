@@ -43,7 +43,6 @@ function joinGroups(rows) {
 }
 
 const signupUrl = (act) => `inscripcion.html?actividad=${encodeURIComponent(act.id)}`;
-const requisitoText = (act) => act.requisito ? act.requisito : "Sin requisitos previos";
 
 // Color y animación de cada actividad (los grupos A y B comparten). La clave es el ID sin "-a"/"-b".
 const LOOKS = {
@@ -214,7 +213,7 @@ function openPanel(id) {
     $("[data-lab-intro]").textContent = act.descripcion || "Pronto vamos a publicar la descripción completa de esta actividad.";
     $("[data-lab-sched]").innerHTML = scheduleHtml(act, "md");
     $("[data-lab-capacidad]").textContent = act.grupos.length > 1 ? `${act.capacidad} vacantes por horario` : `${act.capacidad} vacantes`;
-    $("[data-lab-requisito]").textContent = requisitoText(act);
+    $("[data-lab-requisito]").innerHTML = requisitoHtml(act);
     $("[data-lab-herramientas]").textContent = act.herramientas || "";
     $("[data-lab-tools-box]").hidden = !act.herramientas;
 

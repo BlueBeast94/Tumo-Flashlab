@@ -85,6 +85,18 @@ const CLOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="1
 // ID de la actividad sin el grupo: "musica-cine-b" → "musica-cine" (los grupos comparten todo menos el horario)
 const baseId = (act) => String(act.id).replace(/-[a-z]$/, "");
 
+// Requisitos como lista con ✓: "✓ Nivel 1 de Música – Aprobado". Con varios, alcanza con uno.
+// Si la planilla todavía no manda los cursos, se usa el texto de "Requisito" sin el "Tener" del principio.
+function requisitoHtml(act) {
+    const cursos = act.cursosRequisito || [];
+    if (!cursos.length) {
+        const text = String(act.requisito || "").replace(/^tener\s+/i, "");
+        return text ? escapeHtml(text.charAt(0).toUpperCase() + text.slice(1)) : "Sin requisitos previos";
+    }
+    return `<ul class="req-list">${cursos.map((c) => `<li>${escapeHtml(c)} – Aprobado</li>`).join("")}</ul>` +
+        (cursos.length > 1 ? '<p class="req-list__hint">Alcanza con uno</p>' : "");
+}
+
 // "9:00 a 11:00" → "9:00 – 11:00"
 const timeText = (horario) => String(horario || "").replace(/\s+a\s+/i, " – ");
 
@@ -100,9 +112,11 @@ function scheduleHtml(act, size = "md", extra = "") {
     }
     // En la versión chica no hay leyenda: el día especial lleva la primera palabra de su nota ("Cierre")
     const shortNote = note ? capitalize(note.split(/\s+/)[0]).slice(0, 8) : "";
-    // En las tarjetas (sm) no se muestra el día de cierre; en el detalle sí.
-    // Para volver a mostrarlo en las tarjetas, usar `days` en lugar de `shown`.
-    const shown = size === "sm" ? days.filter((d) => !d.extra) : days;
+    // El día de cierre (vie 18) no se muestra en ningún lado por ahora.
+    // Para volver a mostrarlo: const shown = size === "sm" ? days.filter((d) => !d.extra) : days; (sólo en el detalle)
+    // o const shown = days; (en todos lados)
+    const shown = days.filter((d) => !d.extra);
+    const showNote = shown.some((d) => d.extra); // la leyenda "Cierre y recuperatorio" sólo si se ve ese día
     const tiles = shown.map((d) => {
         const label = d.extra && size === "sm" && shortNote ? shortNote : d.dow;
         const title = d.extra && note ? ` title="${escapeHtml(capitalize(note))}"` : "";
@@ -114,7 +128,7 @@ function scheduleHtml(act, size = "md", extra = "") {
     }
     const legend = [
         month ? `<span>${capitalize(month)}</span>` : "",
-        note ? `<span><i class="day-key"></i>${escapeHtml(capitalize(note))}</span>` : "",
+        note && showNote ? `<span><i class="day-key"></i>${escapeHtml(capitalize(note))}</span>` : "",
     ].filter(Boolean).join("");
     return `<div class="sched sched--${size}" role="group" aria-label="${escapeHtml(act.dias)}, ${time}">
         ${timeBadge ? `<div class="sched__row">${timeBadge}</div>` : ""}

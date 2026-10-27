@@ -49,12 +49,14 @@
                 <p class="chosen__meta" data-chosen-meta></p>
                 <div class="chosen__sched" data-chosen-sched></div>
                 <!-- Sólo si la actividad tiene más de un horario (grupos A y B) -->
-                <fieldset class="horario" data-horario hidden>
-                    <legend>Elegí tu horario</legend>
-                    <div class="horario__opts" data-horario-opts></div>
+                <div class="horario" data-horario hidden>
+                    <label class="horario__label" for="horario">Elegí tu horario</label>
+                    <select id="horario" class="horario__select" data-horario-select>
+                        <option value="">Seleccioná</option>
+                    </select>
                     <p class="horario__msg" data-horario-msg aria-live="polite"></p>
-                </fieldset>
-                <p class="chosen__req"><span>Requisitos</span> <b data-chosen-requisito></b></p>
+                </div>
+                <div class="chosen__req"><span>Requisitos</span> <div class="chosen__req-list" data-chosen-requisito></div></div>
                 <p class="chosen__waitlist" data-chosen-waitlist hidden>
                     No quedan vacantes en este horario: tu solicitud va a entrar en <strong>lista de espera</strong>.
                 </p>

@@ -41,7 +41,6 @@ function showMessage(text, actions = [TO_CARTELERA]) {
 // El grupo (A/B) no se muestra a las familias: antes era `… (grupo ${act.grupo})`
 const actName = () => `<strong>${escapeHtml(info.nombre)}</strong>`;
 const actWhen = () => `de ${escapeHtml(act.horario)}`; // los días se ven en el calendario de arriba
-const GROUP_STATE = { abierta: "Disponible", espera: "Lista de espera", cerrada: "Cerrado" };
 
 // ---------- Carga de la actividad ----------
 
@@ -87,14 +86,12 @@ function fillChosen() {
     const multi = grupos.length > 1;
     // Con varios horarios, el horario se elige abajo; acá sólo van los días
     $("[data-chosen-sched]").innerHTML = scheduleHtml({ ...info, horarios: multi ? [] : [grupos[0].horario] }, "md");
-    $("[data-chosen-requisito]").textContent = info.requisito || "Sin requisitos previos";
+    $("[data-chosen-requisito]").innerHTML = requisitoHtml(info);
     $("[data-horario]").hidden = !multi;
-    $("[data-horario-opts]").innerHTML = grupos.map((g) => `
-        <label class="horario__opt">
-            <input type="radio" name="grupo" value="${escapeHtml(g.id)}" ${act && act.id === g.id ? "checked" : ""}>
-            <span class="horario__time">${CLOCK}${escapeHtml(timeText(g.horario))}</span>
-            <span class="horario__state state state--${g.estado}">${GROUP_STATE[g.estado]}</span>
-        </label>`).join("");
+    // Lista desplegable: empieza en "Seleccioná" (salvo que se haya llegado con un grupo ya elegido)
+    $("[data-horario-select]").innerHTML = '<option value="">Seleccioná</option>' + grupos.map((g) =>
+        `<option value="${escapeHtml(g.id)}" ${act && act.id === g.id ? "selected" : ""}>` +
+        `${escapeHtml(timeText(g.horario))}${g.estado === "espera" ? " (lista de espera)" : ""}</option>`).join("");
     updateChoice();
 }
 
@@ -109,7 +106,7 @@ function updateChoice() {
         (act ? `, ${actWhen()}.` : ".");
 }
 
-$("[data-horario-opts]").addEventListener("change", (e) => {
+$("[data-horario-select]").addEventListener("change", (e) => {
     act = grupos.find((g) => g.id === e.target.value) || null;
     updateChoice();
     // El lugar (vacante o lista de espera) depende del horario: se vuelve a verificar
@@ -314,6 +311,7 @@ form.addEventListener("submit", async (e) => {
         $("[data-horario]").classList.add("is-invalid");
         $("[data-horario-msg]").textContent = "Elegí en qué horario querés hacer la actividad.";
         $("[data-horario]").scrollIntoView({ behavior: "smooth", block: "center" });
+        $("[data-horario-select]").focus({ preventScroll: true });
         return formError("Elegí un horario.");
     }
     const r = verify.result;

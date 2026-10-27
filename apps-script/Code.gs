@@ -324,6 +324,16 @@ function courseLabel_(col) {
   return (COURSE_NAMES[m[1]] || m[1].replace(/_/g, " ")) + " " + { I: 1, II: 2, III: 3, IV: 4 }[m[2]];
 }
 
+// Cursos del requisito para la cartelera: "Music_I o Robotics_I" → ["Nivel 1 de Música", "Nivel 1 de Robótica"]
+function requirementLevels_(act) {
+  const rule = String(act["Columna requisito"] || "").trim();
+  if (!rule) return [];
+  return rule.split(/\s+[oy]\s+|[|&,]/i).map((c) => c.trim()).filter(Boolean).map((col) => {
+    const m = courseLabel_(col).match(/^(.*) (\d)$/);
+    return m ? "Nivel " + m[2] + " de " + m[1] : courseLabel_(col);
+  });
+}
+
 // Lo que ve el estudiante en la web: sólo los cursos del requisito de ESA actividad (nunca todo su historial).
 // Se apaga con Config > "Web: mostrar detalle de requisitos" = NO.
 function publicRequirements_(act, student, headers) {
@@ -400,6 +410,7 @@ function publicActivities_() {
         horario: a["Horario"],
         capacidad: Number(a["Capacidad"]) || 0,
         requisito: a["Requisito"] || "",
+        cursosRequisito: requirementLevels_(a), // ["Nivel 1 de Música", …]: la web los muestra con ✓
         descripcion: a["Descripción"] || "",
         herramientas: a["Herramientas"] || "",
         imagen: a["Imagen"] || "",
