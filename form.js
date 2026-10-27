@@ -120,7 +120,8 @@ function verifyMessage(r) {
         case "activa":
             return ["error", `Este documento ya tiene una inscripción activa. Cada estudiante puede solicitar una sola actividad. Para cambiarla, ${contactText()}.`];
         case "no_cumple":
-            return ["error", `No cumplís el requisito de esta actividad${r.motivo ? `: ${escapeHtml(r.motivo)}` : ""}.`];
+            return ["warn", "Documento verificado. No cumplís todos los requisitos: igual podés enviar la solicitud, " +
+                "pero vas a quedar detrás de quienes los cumplen."];
         case "cerrada":
             return ["error", "La inscripción a esta actividad se cerró."];
         case "actividad_invalida":
@@ -153,12 +154,14 @@ function renderRequirements(r) {
     // Qué le falta: en "todos" los no aprobados; en "alcanza con uno", cualquiera de la lista
     const missing = req.cursos.filter((c) => c.estado !== "ok").map((c) => c.curso);
     const join = (list, last) => list.length > 1 ? `${list.slice(0, -1).join(", ")} ${last} ${list[list.length - 1]}` : list[0];
-    const notYet = req.modo === "any" && several
+    const notYet = (req.modo === "any" && several
         ? `Todavía no cumplís el requisito: necesitás tener aprobado ${join(missing, "o")}.`
-        : `Todavía no cumplís el requisito: te falta aprobar ${join(missing, "y")}.`;
+        : `Todavía no cumplís el requisito: te falta aprobar ${join(missing, "y")}.`) +
+        " Igual podés enviar la solicitud: tienen prioridad quienes cumplen los requisitos.";
     const verdict = {
         ok: ["ok", "¡Cumplís el requisito! Podés solicitar vacante en esta actividad."],
-        no_cumple: ["no", missing.length ? notYet : "Todavía no cumplís el requisito de esta actividad."],
+        // Amarillo, no rojo: no cumplir no bloquea, sólo baja la prioridad
+        no_cumple: ["unknown", missing.length ? notYet : "Todavía no cumplís el requisito de esta actividad."],
     }[r.status] || ["unknown", req.sinHistorial
         ? "No encontramos tu historial de cursos. Podés enviar la solicitud y el equipo de TUMO lo va a revisar."
         : "No pudimos confirmar todos los cursos. Podés enviar la solicitud y el equipo de TUMO lo va a revisar."];
@@ -270,7 +273,7 @@ form.addEventListener("submit", async (e) => {
         if (dniInput.value.length < MIN_DOC) setVerify("error", "Escribí tu DNI o documento.");
         return formError(dniInput.value.length >= MIN_DOC ? "Esperá a que termine la verificación del documento." : "Revisá tu documento.");
     }
-    if (!["ok", "sin_verificar"].includes(r.status)) return formError("Revisá el mensaje del documento antes de enviar.");
+    if (!["ok", "sin_verificar", "no_cumple"].includes(r.status)) return formError("Revisá el mensaje del documento antes de enviar.");
     if (!form.confirmo.checked) {
         $("[data-field='confirmo']").classList.add("is-invalid");
         return formError("Marcá la confirmación para enviar tu solicitud.");
@@ -311,7 +314,10 @@ function showDone(result) {
         "Lista de espera": `Por ahora quedaste en <strong>lista de espera</strong> de ${actName()}: todavía no tenés vacante. Si se libera una, te contactamos.`,
         "En validación": `Antes de confirmarte una vacante en ${actName()}, el equipo va a revisar el requisito de la actividad.`,
     }[result.estado] || `Solicitaste vacante en ${actName()}, ${actWhen()}. Tu vacante todavía no está confirmada.`;
-    $("[data-done-detail]").innerHTML = detail;
+    const priority = result.estado !== "En validación" && result.cumple === false
+        ? " Como no cumplís todos los requisitos, tienen prioridad quienes sí los cumplen."
+        : "";
+    $("[data-done-detail]").innerHTML = detail + priority;
     show("done");
     window.scrollTo({ top: 0, behavior: "smooth" });
 }

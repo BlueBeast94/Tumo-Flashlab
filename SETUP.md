@@ -93,8 +93,15 @@ La columna **Datos 360** de Estudiantes también lo resume: `OK`, `Sin TUMO ID e
   |---|---|
   | Completed / Completed ⭐ | ✅ cumple |
   | Prerequisite Done | ✅ sólo si Valor requerido = Prerequisite Done; si no, ⛔ |
-  | Prerequisite Not Done | ⛔ no cumple: se bloquea y se muestra el motivo |
+  | Prerequisite Not Done | ⛔ no cumple |
   | Prerequisite Conditional, o sin datos del 360 (sin TUMO ID) | ⚠️ no se puede verificar → se registra *En validación* |
+
+- **No cumplir los requisitos no bloquea:** la solicitud se registra igual, con menos prioridad. La columna **Prioridad** de Solicitudes dice:
+  - `1 · Cumple requisitos`
+  - `2 · Sin verificar`
+  - `3 · No cumple requisitos`
+
+  Para confirmar vacantes, ordená Solicitudes por **Prioridad** y después por **Fecha**. Para llenar un grupo sólo cuentan las pendientes con prioridad 1 (más las confirmadas): una solicitud que no cumple **nunca** manda a lista de espera a una que sí.
 
 - **Descripciones y requisitos** de "Flash Labs" ya están cargados en el código: menú **FlashLabs → Actualizar descripciones y requisitos** los vuelca en Actividades (pisa nombre, descripción, requisito, regla, capacidad y herramientas).
 

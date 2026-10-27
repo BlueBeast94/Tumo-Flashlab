@@ -30,7 +30,7 @@ const HEADERS = {
   Estudiantes: STUDENT_BASE,
   "Estudiantes manuales": STUDENT_BASE,
   Solicitudes: ["ID", "Fecha", "DNI", "TUMO ID", "Nombre ingresado", "Nombre 360", "Email", "Actividad ID",
-    "Actividad", "Grupo", "Estado", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas"],
+    "Actividad", "Grupo", "Estado", "Prioridad", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas"],
   Historial: ["Fecha", "Usuario", "Solicitud", "DNI", "Antes", "Después", "Detalle"],
   Mensajes: ["Clave", "Asunto", "Cuerpo"],
   Config: ["Clave", "Valor", "Descripción"],
@@ -54,6 +54,11 @@ const ESTADOS = Object.keys(ESTADO).map((k) => ESTADO[k]);
 const ACTIVOS = [ESTADO.RECIBIDA, ESTADO.VALIDACION, ESTADO.PENDIENTE, ESTADO.CONFIRMADA, ESTADO.ESPERA, ESTADO.OFRECIDA];
 // Estas ocupan lugar: cuando suman la capacidad, las nuevas solicitudes van a lista de espera
 const OCUPAN = [ESTADO.PENDIENTE, ESTADO.CONFIRMADA, ESTADO.OFRECIDA];
+
+// Se puede pedir vacante aunque no se cumplan los requisitos: queda con menos prioridad.
+// El equipo ordena Solicitudes por Prioridad y después por Fecha.
+const PRIORIDAD = { CUMPLE: "1 · Cumple requisitos", SIN_VERIFICAR: "2 · Sin verificar", NO_CUMPLE: "3 · No cumple requisitos" };
+const priorityOf_ = (s) => Number(String(s["Prioridad"] || "1").charAt(0)) || 1; // filas viejas sin prioridad = 1
 
 // Lo que ve el estudiante para cada estado interno
 const ESTADO_PUBLICO = {
@@ -349,7 +354,10 @@ function availability_(act, solicitudes, cfg) {
   const mine = solicitudes.filter((s) => s["Actividad ID"] === act["ID"]);
   const count = (estados) => mine.filter((s) => estados.indexOf(s["Estado"]) >= 0).length;
   const capacidad = Number(act["Capacidad"]) || 0;
-  const ocupadas = count(OCUPAN);
+  // Ocupan lugar las confirmadas/ofrecidas y las pendientes que cumplen requisitos:
+  // una solicitud que no los cumple nunca manda a lista de espera a una que sí.
+  const ocupadas = mine.filter((s) => s["Estado"] === ESTADO.CONFIRMADA || s["Estado"] === ESTADO.OFRECIDA ||
+    (s["Estado"] === ESTADO.PENDIENTE && priorityOf_(s) === 1)).length;
   const inscripcion = norm_(act["Inscripción"]);
 
   let estado = "abierta";
@@ -449,10 +457,13 @@ function register_(data) {
   try {
     // Se repite todo dentro del lock: evita duplicados y que dos personas tomen la última vacante
     const r = verify_(data.dni, data.actividad);
-    if (r.status !== "ok" && r.status !== "sin_verificar") return publicVerify_(r);
+    // No cumplir los requisitos no bloquea: se registra con prioridad 3
+    if (["ok", "sin_verificar", "no_cumple"].indexOf(r.status) < 0) return publicVerify_(r);
 
     const estado = r.status === "sin_verificar" ? ESTADO.VALIDACION
       : r.lugar === "espera" ? ESTADO.ESPERA : ESTADO.PENDIENTE;
+    const prioridad = { ok: PRIORIDAD.CUMPLE, sin_verificar: PRIORIDAD.SIN_VERIFICAR, no_cumple: PRIORIDAD.NO_CUMPLE }[r.status];
+    const validacion = { ok: "Requisitos OK", sin_verificar: "Requisito sin verificar", no_cumple: "No cumple requisitos" }[r.status];
     const sol = table_(TAB.SOL);
     const id = "S-" + Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "yyMMdd") + "-" +
       Utilities.getUuid().slice(0, 6).toUpperCase();
@@ -468,16 +479,17 @@ function register_(data) {
       "Actividad": r.act["Actividad"],
       "Grupo": r.act["Grupo"],
       "Estado": estado,
-      "Validación": (r.status === "ok" ? "Identidad OK · Requisitos OK" : "Identidad OK · Requisito sin verificar") +
-        " (" + r.detalle + ")",
-      "Motivo": r.status === "sin_verificar" ? "Verificar a mano: " + (r.motivo || "requisito") : "",
+      "Prioridad": prioridad,
+      "Validación": "Identidad OK · " + validacion + " (" + r.detalle + ")",
+      "Motivo": r.status === "sin_verificar" ? "Verificar a mano: " + (r.motivo || "requisito")
+        : r.status === "no_cumple" ? "Prioridad baja, no cumple: " + (r.motivo || "requisito") : "",
       "Token": Utilities.getUuid(),
       "Actualizado": new Date(),
     };
     append_(sol, row);
     log_(row, "", estado, "Solicitud recibida desde la web");
     sendTemplate_("RECEPCION", row, r.act);
-    return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado] };
+    return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado], cumple: r.status === "ok" };
   } finally {
     lock.releaseLock();
   }
