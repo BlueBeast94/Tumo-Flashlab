@@ -10,6 +10,12 @@
     --blue:   #2730e7;
     --light:  #f2f2f2;
 
+    /* Extra (no están en el manual): un color por actividad en la cartelera */
+    --purple: #7a3fe0;
+    --green:  #12805a;
+    --teal:   #0b7f93;
+    --pink:   #d12f6e;
+
     --ink:    #111111;
     --muted:  #55575f;
     --white:  #ffffff;
@@ -331,7 +337,6 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .card .sched__time { background: var(--white); color: var(--ink); }
 .card .day { background: rgba(255, 255, 255, 0.16); }
 .card--yellow .day { background: rgba(0, 0, 0, 0.08); }
-.card--yellow .sched__time { background: var(--ink); color: var(--white); }
 
 /* Estados de inscripción (cartelera, panel y formulario) */
 .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.2rem; }
@@ -376,12 +381,50 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     transition: transform 0.2s ease;
 }
 .card:hover { transform: translateY(-6px) rotate(-1deg); }
+.card:not(.card--skeleton) { cursor: pointer; }
 .card--blue   { background: var(--blue);   color: var(--white); }
 .card--red    { background: var(--red);    color: var(--white); }
 .card--yellow { background: var(--yellow); color: var(--ink); }
 .card--dark   { background: var(--ink);    color: var(--white); }
+/* Colores extra para que cada actividad tenga el suyo (texto blanco, contraste AA) */
+.card--purple { background: var(--purple); color: var(--white); }
+.card--green  { background: var(--green);  color: var(--white); }
+.card--teal   { background: var(--teal);   color: var(--white); }
+.card--pink   { background: var(--pink);   color: var(--white); }
 .card.is-closed { filter: grayscale(0.85); opacity: 0.75; }
 .card.is-closed:hover { transform: none; }
+
+/* Imagen (o animación) arriba, con el nombre encima */
+.card__media {
+    position: relative;
+    height: 200px;
+    margin: -0.4rem -0.4rem 0.2rem;
+    border-radius: 20px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.18);
+}
+.card--yellow .card__media { background: rgba(0, 0, 0, 0.08); }
+.card__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* Las animaciones del panel son más grandes: se achican para la tarjeta */
+.card__media > div:not(.card__caption) { transform: scale(0.7); transform-origin: center 35%; }
+.card__media > .art-game { transform: none; position: absolute; inset: 0; }
+.card h3 { text-align: center; line-height: 1.1; }
+/* Horario y estado en la misma fila */
+.sched__row { display: flex; align-items: center; justify-content: space-between; gap: 0.35rem; flex-wrap: wrap; }
+.card .sched__row { flex-wrap: nowrap; }
+/* Con dos horarios: los dos lado a lado y el estado abajo, a la derecha */
+.sched__row--multi { justify-content: flex-start; }
+.card .sched__row--multi { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+.card .sched__row--multi .state { grid-column: 1 / -1; justify-self: end; }
+.card .sched--sm .sched__row--multi .sched__time { justify-content: center; font-size: 0.78rem; padding: 0.5em 0.4em; gap: 0.3em; }
+.card .sched--sm .sched__time { font-size: 0.9rem; padding: 0.45em 0.75em 0.45em 0.6em; }
+.card .sched__row .state { background: var(--white); color: var(--ink); font-size: 0.74rem; padding: 0.55em 0.75em 0.55em 0.6em; }
+.card__media > .art-robot { transform: scale(0.6) translateX(-12%); }
+.card .sched__row .state--abierta { color: #1a8a53; }
+.card .sched--sm { justify-items: stretch; }
+.card .sched--sm .day { flex: 1; }
 
 .card__top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
 .card__type { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
@@ -428,7 +471,6 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     background: var(--white);
     color: var(--ink);
 }
-.card--yellow .card__signup { background: var(--ink); color: var(--white); }
 .card__signup.is-disabled { background: transparent; border-color: currentColor; color: inherit; cursor: not-allowed; opacity: 0.8; }
 .card__signup.is-disabled:hover { transform: none; }
 
@@ -527,6 +569,10 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .lab-panel--red    { --panel-bg: var(--red);    --panel-fg: var(--white); }
 .lab-panel--yellow { --panel-bg: var(--yellow); --panel-fg: var(--ink); }
 .lab-panel--dark   { --panel-bg: var(--ink);    --panel-fg: var(--white); }
+.lab-panel--purple { --panel-bg: var(--purple); --panel-fg: var(--white); }
+.lab-panel--green  { --panel-bg: var(--green);  --panel-fg: var(--white); }
+.lab-panel--teal   { --panel-bg: var(--teal);   --panel-fg: var(--white); }
+.lab-panel--pink   { --panel-bg: var(--pink);   --panel-fg: var(--white); }
 
 .lab-panel__close {
     position: absolute;
@@ -821,6 +867,37 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .chosen h2 { margin-top: 0.4rem; font-size: clamp(1.8rem, 5vw, 2.4rem); }
 .chosen__meta { margin-top: 0.3rem; color: var(--muted); font-weight: 600; }
 .chosen__sched { margin-top: 1.2rem; }
+/* Elegir horario (grupos A y B) */
+.horario { margin-top: 1.2rem; padding: 0; border: 0; min-width: 0; }
+.horario[hidden] { display: none; }
+.horario legend { padding: 0; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--red); }
+.horario__opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; }
+.horario__opt {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    border: 2px solid var(--light);
+    border-radius: 18px;
+    background: var(--white);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.horario__opt:hover { border-color: rgba(39, 48, 231, 0.4); }
+.horario__opt input { position: absolute; opacity: 0; pointer-events: none; }
+.horario__opt:has(input:checked) { border-color: var(--blue); background: rgba(39, 48, 231, 0.06); box-shadow: 0 0 0 1px var(--blue); }
+.horario__opt:has(input:focus-visible) { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.horario__time { display: inline-flex; align-items: center; gap: 0.45em; font-size: 1.15rem; font-weight: 900; }
+.horario__time svg { width: 1em; height: 1em; }
+.horario__state { background: var(--light); }
+.horario.is-invalid .horario__opt { border-color: var(--red); }
+.horario__msg { margin-top: 0.5rem; color: var(--red); font-weight: 700; font-size: 0.9rem; }
+.horario__msg:empty { display: none; }
+.confirm__hint { margin-top: 0.6rem; font-weight: 700; font-size: 0.9rem; color: var(--muted); }
+
 .chosen__req { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
 .chosen__req span { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .chosen__waitlist {

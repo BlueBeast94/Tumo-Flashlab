@@ -85,8 +85,7 @@ La columna **Datos 360** de Estudiantes también lo resume: `OK`, `Sin TUMO ID e
 - **Vacantes:** una solicitud nueva queda *Pendiente de confirmación* mientras Pendientes + Confirmadas + Ofrecidas < Capacidad. Si no, entra en *Lista de espera*. Recibir una solicitud **no** la confirma: confirma el equipo.
 - **Requisitos:** en Actividades, `Requisito` es el texto que ve el estudiante y `Columna requisito` dice qué cursos del 360 se miran:
   - `Music_I` → hace falta ese curso.
-  - `Programming_II o Music_II` → alcanza con uno.
-  - `Graphic_Design_I y 3D_Modeling_I` → hacen falta todos.
+  - `Programming_II o Music_II` → **alcanza con uno**. Los requisitos no son excluyentes: aunque la regla diga `y`, también alcanza con uno.
   - `Valor requerido`: vacío o `Completed` = haberlo aprobado. `Prerequisite Done` = alcanza con estar habilitado para cursarlo.
 
   | Valor del 360 | Resultado |
@@ -104,6 +103,8 @@ La columna **Datos 360** de Estudiantes también lo resume: `OK`, `Sin TUMO ID e
   Para confirmar vacantes, ordená Solicitudes por **Prioridad** y después por **Fecha**. Para llenar un grupo sólo cuentan las pendientes con prioridad 1 (más las confirmadas): una solicitud que no cumple **nunca** manda a lista de espera a una que sí.
 
 - **Descripciones y requisitos** de "Flash Labs" ya están cargados en el código: menú **FlashLabs → Actualizar descripciones y requisitos** los vuelca en Actividades (pisa nombre, descripción, requisito, regla, capacidad y herramientas).
+
+- **Grupos B (otro horario):** cada grupo es una fila de Actividades (`musica-cine-a`, `musica-cine-b`). Para abrir un grupo B, poné `Habilitado = SÍ` en su fila y revisá su `Horario` y `Capacidad`. La web muestra **una sola tarjeta** por actividad con los horarios de todos sus grupos, y el estudiante **elige el horario en el formulario**. La solicitud se guarda con su `Grupo` (A o B) en Solicitudes. Cada grupo tiene su propia capacidad y lista de espera; un estudiante sigue pudiendo tener una sola solicitud activa.
 
 ## 5. La web
 

@@ -111,7 +111,7 @@ const SEED_CONFIG = [
 
 // Datos de "Flash Labs" (descripciones, requisitos y cupos). Se cargan con el menú
 // FlashLabs > Actualizar descripciones y requisitos. null = no tocar esa columna.
-// Columna requisito: columnas del 360 unidas con " o " (alcanza una) o " y " (hacen falta todas).
+// Columna requisito: columnas del 360 unidas con " o " (alcanza con una aprobada; ver requirementParts_).
 const CATALOGO = {
   "musica-cine": {
     nombre: "Composición de Música para Cine",
@@ -138,7 +138,7 @@ const CATALOGO = {
   "juego-cartas": {
     nombre: "Creación de cartas",
     descripcion: "En grupo, creás un juego de cartas y un dado, y aprendés a balancear las mecánicas que inventen usando patrones de game design.",
-    requisito: "Diseño Gráfico 1 y Modelado 3D 1 aprobados (Videojuegos 1 recomendado)", regla: "Graphic_Design_I y 3D_Modeling_I", valor: "Completed",
+    requisito: "Tener Diseño Gráfico 1 o Modelado 3D 1 aprobado (alcanza con uno; Videojuegos 1 recomendado)", regla: "Graphic_Design_I o 3D_Modeling_I", valor: "Completed",
     capacidad: 18, herramientas: "Illustrator y Maya",
   },
   "tumo-tank": {
@@ -162,21 +162,31 @@ const CATALOGO = {
 
 const SEED_MENSAJES = [
   ["RECEPCION", "Recibimos tu solicitud para {actividad}",
-    "¡Hola {nombre}!\n\nRecibimos tu solicitud para {actividad} (grupo {grupo}).\n{dias}, {horario}.\n\n" +
+    "¡Hola {nombre}!\n\nRecibimos tu solicitud para {actividad}.\nDías: {dias}\nHorario: {horario}\n\n" +
     "Importante: tu vacante todavía NO está confirmada. Pronto nos vamos a contactar con vos.\n\n¡Gracias!\nTUMO Barracas"],
   ["CONFIRMADA", "¡Tu vacante en {actividad} está confirmada!",
-    "¡Hola {nombre}!\n\nTu vacante en {actividad} (grupo {grupo}) está confirmada.\n\n" +
+    "¡Hola {nombre}!\n\nTu vacante en {actividad} está confirmada.\n\n" +
     "Días: {dias}\nHorario: {horario}\nLugar: TUMO Barracas\n\nEs importante asistir a todas las sesiones.\n\n¡Te esperamos!\nTUMO Barracas"],
   ["ESPERA", "Estás en lista de espera para {actividad}",
-    "¡Hola {nombre}!\n\nPor ahora no hay vacantes en {actividad} (grupo {grupo}), así que quedaste en lista de espera.\n" +
+    "¡Hola {nombre}!\n\nPor ahora no hay vacantes en {actividad} ({horario}), así que quedaste en lista de espera.\n" +
     "Todavía no tenés una vacante. Si se libera una, te vamos a escribir a este mail.\n\nTUMO Barracas"],
   ["CANCELADA", "Tu solicitud para {actividad} fue cancelada",
-    "¡Hola {nombre}!\n\nTu solicitud para {actividad} (grupo {grupo}) fue cancelada.\n" +
+    "¡Hola {nombre}!\n\nTu solicitud para {actividad} ({horario}) fue cancelada.\n" +
     "Si creés que es un error, escribinos a {contacto}.\n\nTUMO Barracas"],
   ["NO_ELEGIBLE", "Sobre tu solicitud para {actividad}",
     "¡Hola {nombre}!\n\nRevisamos tu solicitud para {actividad} y no cumple los requisitos de la actividad.\n" +
     "Si tenés dudas, escribinos a {contacto}.\n\nTUMO Barracas"],
 ];
+
+// Las familias no ven el grupo (A/B), sólo el horario. Arregla textos viejos con "(grupo {grupo})":
+// si el texto ya dice el horario, lo quita; si no, lo cambia por el horario.
+function withoutGroup_(text) {
+  const t = String(text || "");
+  if (t.indexOf("{grupo}") < 0) return t;
+  const hasHorario = t.indexOf("{horario}") >= 0;
+  return t.replace(/\s*\(grupo \{grupo\}\)/g, hasHorario ? "" : " ({horario})")
+    .replace(/\s*grupo \{grupo\}/g, hasHorario ? "" : " {horario}");
+}
 
 // Sólo para planillas nuevas: la primera sincronización los reemplaza por los estudiantes reales
 const SEED_ESTUDIANTES_PRUEBA = [
@@ -270,8 +280,9 @@ function courseCheck_(value, required) {
   return "unknown"; // "Prerequisite Conditional" u otro valor: lo revisa el equipo
 }
 
-// "Columna requisito": "Music_I" · "Programming_II o Music_II" (alcanza una) · "Graphic_Design_I y 3D_Modeling_I" (todas)
-// Devuelve null si no hay requisito, o { modo: "any" | "all", cursos: [{ col, header, value, result }] }
+// "Columna requisito": "Music_I" · "Programming_II o Music_II" · "Graphic_Design_I y 3D_Modeling_I"
+// Los requisitos NO son excluyentes: alcanza con tener aprobado uno de la lista, se separen con " o " o con " y ".
+// Devuelve null si no hay requisito, o { modo: "any", cursos: [{ col, header, value, result }] }
 function requirementParts_(act, student, headers) {
   const rule = String(act["Columna requisito"] || "").trim();
   if (!rule) return null;
@@ -280,7 +291,8 @@ function requirementParts_(act, student, headers) {
     const value = header ? String(student[header] || "").trim() : "";
     return { col: col, header: header, value: value, result: header ? courseCheck_(value, act["Valor requerido"]) : "unknown" };
   });
-  return { modo: /\s+o\s+|\|/i.test(rule) ? "any" : "all", cursos: cursos };
+  // Antes " y " significaba "hacen falta todos": /\s+o\s+|\|/i.test(rule) ? "any" : "all"
+  return { modo: "any", cursos: cursos };
 }
 
 // Devuelve "ok" | "no" | "unknown". Sin datos del 360 (sin TUMO ID) → "unknown".
@@ -622,8 +634,8 @@ function sendTemplate_(key, row, act) {
     horario: act ? act["Horario"] : "",
     contacto: cfg["Contacto"] || "TUMO Barracas",
   };
-  const subject = (testTo ? "[PRUEBA → " + row["Email"] + "] " : "") + fill_(msg["Asunto"], vars);
-  MailApp.sendEmail({ to: to, subject: subject, body: fill_(msg["Cuerpo"], vars), name: "TUMO Barracas" });
+  const subject = (testTo ? "[PRUEBA → " + row["Email"] + "] " : "") + fill_(withoutGroup_(msg["Asunto"]), vars);
+  MailApp.sendEmail({ to: to, subject: subject, body: fill_(withoutGroup_(msg["Cuerpo"]), vars), name: "TUMO Barracas" });
 }
 
 // ==========================================================
@@ -663,6 +675,18 @@ function setup() {
   if (table_(TAB.MSG).rows.length === 0) {
     const sh = ss.getSheetByName(TAB.MSG);
     SEED_MENSAJES.forEach((r) => sh.appendRow(r));
+    forget_(TAB.MSG);
+  } else {
+    // Planillas ya instaladas: saca el grupo de los textos (ver withoutGroup_)
+    const msgs = table_(TAB.MSG);
+    const sh = ss.getSheetByName(TAB.MSG);
+    ["Asunto", "Cuerpo"].forEach((col) => {
+      const c = msgs.headers.indexOf(col) + 1;
+      msgs.rows.forEach((m) => {
+        const fixed = withoutGroup_(m[col]);
+        if (c && fixed !== String(m[col] || "")) sh.getRange(m._row, c).setValue(fixed);
+      });
+    });
     forget_(TAB.MSG);
   }
   if (table_(TAB.ACT).rows.length === 0) {

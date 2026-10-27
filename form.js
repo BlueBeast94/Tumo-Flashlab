@@ -12,7 +12,9 @@ const dniInput = form.dni;
 const SLOW_MS = 6000;
 const DNI_HINT = "Lo usamos para identificarte en los registros de TUMO.";
 
-let act = null;
+let act = null;     // grupo elegido (una fila de la planilla); null hasta que se elige el horario
+let info = null;    // datos comunes de la actividad (nombre, días, requisito: iguales en todos los grupos)
+let grupos = [];    // grupos de la actividad con inscripción abierta o en lista de espera
 
 // ---------- Vistas ----------
 
@@ -36,8 +38,10 @@ function showMessage(text, actions = [TO_CARTELERA]) {
     show("message");
 }
 
-const actName = () => `<strong>${escapeHtml(act.nombre)}</strong> (grupo ${escapeHtml(act.grupo)})`;
+// El grupo (A/B) no se muestra a las familias: antes era `… (grupo ${act.grupo})`
+const actName = () => `<strong>${escapeHtml(info.nombre)}</strong>`;
 const actWhen = () => `de ${escapeHtml(act.horario)}`; // los días se ven en el calendario de arriba
+const GROUP_STATE = { abierta: "Disponible", espera: "Lista de espera", cerrada: "Cerrado" };
 
 // ---------- Carga de la actividad ----------
 
@@ -59,9 +63,17 @@ async function init() {
         return showMessage(`${LOAD_ERRORS[data.status] || "No pudimos cargar la actividad."} Actualizá para probar de nuevo.`,
             [{ label: "Reintentar", cls: "btn--blue", onClick: () => location.reload() }, { ...TO_CARTELERA, cls: "btn--ghost" }]);
     }
-    act = (data.actividades || []).find((a) => a.id === id);
-    if (!act) return showMessage("Esta actividad no está disponible. Elegí otra en la cartelera.");
-    if (act.estado === "cerrada") return showMessage(`La inscripción a ${actName()} está cerrada.`);
+    // ?actividad= puede ser un grupo ("musica-cine-a", queda preelegido) o la actividad ("musica-cine")
+    const rows = data.actividades || [];
+    const target = rows.find((a) => a.id === id);
+    const base = target ? baseId(target) : id;
+    const todos = rows.filter((a) => baseId(a) === base)
+        .sort((a, b) => String(a.grupo).localeCompare(String(b.grupo)));
+    if (!todos.length) return showMessage("Esta actividad no está disponible. Elegí otra en la cartelera.");
+    info = todos[0];
+    grupos = todos.filter((g) => g.estado !== "cerrada");
+    if (!grupos.length) return showMessage(`La inscripción a ${actName()} está cerrada.`);
+    act = target && target.estado !== "cerrada" ? target : grupos.length === 1 ? grupos[0] : null;
 
     fillChosen();
     show("form");
@@ -69,23 +81,49 @@ async function init() {
 }
 
 function fillChosen() {
-    const espera = act.estado === "espera";
-    document.title = `${act.nombre} · Solicitar vacante · TUMO Barracas`;
-    $("[data-chosen-name]").textContent = act.nombre;
-    $("[data-chosen-meta]").textContent = `${act.tipo} · Grupo ${act.grupo}`;
-    $("[data-chosen-sched]").innerHTML = scheduleHtml(act, "md");
-    $("[data-chosen-requisito]").textContent = act.requisito || "Sin requisitos previos";
-    $("[data-chosen-waitlist]").hidden = !espera;
-    $("[data-confirm-text]").innerHTML =
-        `Confirmo que quiero solicitar ${espera ? "un lugar en la lista de espera" : "una vacante"} en ${actName()}, ${actWhen()}.`;
+    document.title = `${info.nombre} · Solicitar vacante · TUMO Barracas`;
+    $("[data-chosen-name]").textContent = info.nombre;
+    $("[data-chosen-meta]").textContent = info.tipo; // sin el grupo: `${act.tipo} · Grupo ${act.grupo}`
+    const multi = grupos.length > 1;
+    // Con varios horarios, el horario se elige abajo; acá sólo van los días
+    $("[data-chosen-sched]").innerHTML = scheduleHtml({ ...info, horarios: multi ? [] : [grupos[0].horario] }, "md");
+    $("[data-chosen-requisito]").textContent = info.requisito || "Sin requisitos previos";
+    $("[data-horario]").hidden = !multi;
+    $("[data-horario-opts]").innerHTML = grupos.map((g) => `
+        <label class="horario__opt">
+            <input type="radio" name="grupo" value="${escapeHtml(g.id)}" ${act && act.id === g.id ? "checked" : ""}>
+            <span class="horario__time">${CLOCK}${escapeHtml(timeText(g.horario))}</span>
+            <span class="horario__state state state--${g.estado}">${GROUP_STATE[g.estado]}</span>
+        </label>`).join("");
+    updateChoice();
 }
+
+// Lo que depende del horario elegido: aviso de lista de espera y texto de la confirmación 3
+function updateChoice() {
+    const espera = Boolean(act && act.estado === "espera");
+    $("[data-chosen-waitlist]").hidden = !espera;
+    $("[data-horario-msg]").textContent = "";
+    $("[data-horario]").classList.remove("is-invalid");
+    $("[data-confirm-text]").innerHTML =
+        `Confirmo que quiero solicitar ${espera ? "un lugar en la lista de espera" : "una vacante"} en ${actName()}` +
+        (act ? `, ${actWhen()}.` : ".");
+}
+
+$("[data-horario-opts]").addEventListener("change", (e) => {
+    act = grupos.find((g) => g.id === e.target.value) || null;
+    updateChoice();
+    // El lugar (vacante o lista de espera) depende del horario: se vuelve a verificar
+    if (dniInput.value.length >= MIN_DOC) runVerify(dniInput.value);
+});
 
 // Confirmación 1: al llegar con la actividad elegida
 function openConfirm() {
     const dialog = $("[data-confirm]");
-    $("[data-confirm-name]").textContent = `${act.nombre} (grupo ${act.grupo})`;
-    $("[data-confirm-meta]").innerHTML = scheduleHtml(act, "sm");
-    $("[data-confirm-waitlist]").hidden = act.estado !== "espera";
+    $("[data-confirm-name]").textContent = info.nombre; // sin el grupo: `${act.nombre} (grupo ${act.grupo})`
+    const opciones = act ? [act] : grupos;
+    $("[data-confirm-meta]").innerHTML = scheduleHtml({ ...info, horarios: opciones.map((g) => g.horario) }, "sm") +
+        (opciones.length > 1 ? '<p class="confirm__hint">El horario lo elegís en el formulario.</p>' : "");
+    $("[data-confirm-waitlist]").hidden = !opciones.every((g) => g.estado === "espera");
     dialog.addEventListener("cancel", (e) => e.preventDefault()); // hay que elegir una de las dos opciones
     $("[data-confirm-yes]").addEventListener("click", () => {
         dialog.close();
@@ -120,7 +158,7 @@ function verifyMessage(r) {
         case "activa":
             return ["error", `Este documento ya tiene una inscripción activa. Cada estudiante puede solicitar una sola actividad. Para cambiarla, ${contactText()}.`];
         case "no_cumple":
-            return ["warn", "Documento verificado. No cumplís todos los requisitos: igual podés enviar la solicitud, " +
+            return ["warn", "Documento verificado. Todavía no cumplís el requisito: igual podés enviar la solicitud, " +
                 "pero vas a quedar detrás de quienes los cumplen."];
         case "cerrada":
             return ["error", "La inscripción a esta actividad se cerró."];
@@ -189,12 +227,16 @@ async function runVerify(dni) {
         if (seq === verify.seq) setVerify("checking", "Verificando… está tardando más de lo esperado.");
     }, SLOW_MS);
 
-    const r = await apiCall({ action: "verificar", dni, actividad: act.id });
+    // Sin horario elegido todavía se verifica con el primero: el requisito es el mismo en todos los grupos
+    const forId = (act || grupos[0]).id;
+    const r = await apiCall({ action: "verificar", dni, actividad: forId });
     clearTimeout(slow);
-    if (seq !== verify.seq) return; // el DNI cambió mientras tanto
+    if (seq !== verify.seq) return; // el DNI o el horario cambiaron mientras tanto
 
+    if (!act && r.lugar) delete r.lugar; // vacante o lista de espera depende del horario: todavía no se sabe
     verify.result = r;
     verify.dni = dni;
+    verify.forId = forId;
     setVerify(...verifyMessage(r));
     renderRequirements(r);
 }
@@ -268,8 +310,14 @@ form.addEventListener("submit", async (e) => {
         nameInput.focus();
         return formError("Revisá tu nombre y apellido.");
     }
+    if (!act) {
+        $("[data-horario]").classList.add("is-invalid");
+        $("[data-horario-msg]").textContent = "Elegí en qué horario querés hacer la actividad.";
+        $("[data-horario]").scrollIntoView({ behavior: "smooth", block: "center" });
+        return formError("Elegí un horario.");
+    }
     const r = verify.result;
-    if (!r || verify.dni !== dniInput.value) {
+    if (!r || verify.dni !== dniInput.value || verify.forId !== act.id) {
         if (dniInput.value.length < MIN_DOC) setVerify("error", "Escribí tu DNI o documento.");
         return formError(dniInput.value.length >= MIN_DOC ? "Esperá a que termine la verificación del documento." : "Revisá tu documento.");
     }
@@ -315,7 +363,7 @@ function showDone(result) {
         "En validación": `Antes de confirmarte una vacante en ${actName()}, el equipo va a revisar el requisito de la actividad.`,
     }[result.estado] || `Solicitaste vacante en ${actName()}, ${actWhen()}. Tu vacante todavía no está confirmada.`;
     const priority = result.estado !== "En validación" && result.cumple === false
-        ? " Como no cumplís todos los requisitos, tienen prioridad quienes sí los cumplen."
+        ? " Como todavía no cumplís el requisito, tienen prioridad quienes sí lo cumplen."
         : "";
     $("[data-done-detail]").innerHTML = detail + priority;
     show("done");
