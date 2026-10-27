@@ -13,7 +13,7 @@ const STATE = {
     cerrada: { label: "Inscripción cerrada", cta: "" },
 };
 
-// Versión corta del estado, al lado del horario en cada tarjeta
+// Versión corta del estado, arriba a la derecha de la imagen en cada tarjeta
 const CARD_STATE = { abierta: "Disponible", espera: "En espera", cerrada: "Cerrada" };
 
 let actividades = []; // una por actividad (los grupos A y B juntos, ver joinGroups)
@@ -125,12 +125,13 @@ function renderCards() {
         <article class="card card--${colorOf(act)} ${act.estado === "cerrada" ? "is-closed" : ""}">
             <div class="card__media">
                 ${act.imagen ? `<img src="${escapeHtml(act.imagen)}" alt="" loading="lazy">` : artOf(act)}
+                <span class="card__badge state state--${act.estado}">${CARD_STATE[act.estado]}</span>
             </div>
             <h3>
                 <button class="card__open" data-open-lab="${escapeHtml(act.id)}" aria-haspopup="dialog">${escapeHtml(act.nombre)}</button>
             </h3>
             <!-- Grupo oculto para las familias: <span class="card__type">Grupo ${escapeHtml(act.grupo)}</span> -->
-            ${scheduleHtml(act, "sm", `<span class="state state--${act.estado}">${CARD_STATE[act.estado]}</span>`)}
+            ${scheduleHtml(act, "sm")}
             ${signupButton(act)}
         </article>`).join("");
     /* Tarjeta anterior (por si se quiere volver):

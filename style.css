@@ -413,16 +413,16 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .card h3 { text-align: center; line-height: 1.1; }
 /* Horario y estado en la misma fila */
 .sched__row { display: flex; align-items: center; justify-content: space-between; gap: 0.35rem; flex-wrap: wrap; }
-.card .sched__row { flex-wrap: nowrap; }
+.card .sched__row { flex-wrap: nowrap; justify-content: center; }
 /* Con dos horarios: los dos lado a lado y el estado abajo, a la derecha */
 .sched__row--multi { justify-content: flex-start; }
 .card .sched__row--multi { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
-.card .sched__row--multi .state { grid-column: 1 / -1; justify-self: end; }
 .card .sched--sm .sched__row--multi .sched__time { justify-content: center; font-size: 0.78rem; padding: 0.5em 0.4em; gap: 0.3em; }
 .card .sched--sm .sched__time { font-size: 0.9rem; padding: 0.45em 0.75em 0.45em 0.6em; }
-.card .sched__row .state { background: var(--white); color: var(--ink); font-size: 0.74rem; padding: 0.55em 0.75em 0.55em 0.6em; }
+/* Estado: arriba a la derecha de la imagen, siempre en el mismo lugar */
+.card__badge { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 1; font-size: 0.74rem; padding: 0.45em 0.75em 0.45em 0.6em; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
 .card__media > .art-robot { transform: scale(0.6) translateX(-12%); }
-.card .sched__row .state--abierta { color: #1a8a53; }
+.card__badge.state--abierta { color: #1a8a53; }
 .card .sched--sm { justify-items: stretch; }
 .card .sched--sm .day { flex: 1; }
 
