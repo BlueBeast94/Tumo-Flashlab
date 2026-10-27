@@ -1534,3 +1534,93 @@ html:has(dialog[open]), html:has(dialog[open]) body { overflow: hidden; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
     .path-line { stroke-dashoffset: 0; }
 }
+
+/* ==========================================================
+   Cambio de colores (botón redondo de arriba, theme.js)
+   ========================================================== */
+.nav__actions { display: flex; align-items: center; gap: 0.7rem; }
+.theme-toggle {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background: var(--white);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+.theme-toggle:hover { transform: rotate(-20deg) scale(1.06); }
+.theme-toggle:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+/* El punto muestra el color al que se cambia: rojo desde el tema blanco, blanco desde el rojo */
+.theme-toggle__dot {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: var(--red);
+    transition: background 0.2s ease;
+}
+
+/* ==========================================================
+   Tema rojo: fondo rojo TUMO y el resto ajustado.
+   Sólo se activa con <html data-theme="red">; el tema de siempre no cambia.
+   ========================================================== */
+/* --page-alt: el rojo oscuro de la barra de arriba y de las secciones alternadas */
+html[data-theme="red"] { --page: var(--red); --page-alt: #b8360f; --soft: rgba(255, 255, 255, 0.86); }
+html[data-theme="red"] body,
+html[data-theme="red"] .page-form { background: var(--page); color: var(--white); }
+
+/* Barra de arriba */
+html[data-theme="red"] .nav,
+html[data-theme="red"] .page-form .nav { background: var(--page-alt); backdrop-filter: none; border-bottom-color: rgba(0, 0, 0, 0.15); }
+html[data-theme="red"] .nav__links a:hover { color: var(--yellow); }
+html[data-theme="red"] .theme-toggle { border-color: var(--white); background: var(--ink); }
+html[data-theme="red"] .theme-toggle__dot { background: var(--white); }
+html[data-theme="red"] .btn--ghost { border-color: var(--white); color: var(--white); }
+html[data-theme="red"] .btn--ghost:hover { background: var(--white); color: var(--red); }
+
+/* Textos sobre el rojo */
+html[data-theme="red"] .kicker,
+html[data-theme="red"] .hand--red,
+html[data-theme="red"] .hero__title .hand { color: var(--yellow); }
+html[data-theme="red"] .hero__lead,
+html[data-theme="red"] .section__lead,
+html[data-theme="red"] .split__body p { color: var(--soft); }
+html[data-theme="red"] .tag { background: var(--white); color: var(--ink); }
+html[data-theme="red"] .checklist li::before { border-color: var(--yellow); }
+
+/* Botones y pastillas que eran rojos: pasan a negro */
+html[data-theme="red"] .btn--red,
+html[data-theme="red"] .meta-pill--red { background: var(--ink); color: var(--white); }
+
+/* Dibujo del hero: los círculos rojos se perderían en el fondo */
+html[data-theme="red"] .path-art circle[fill="var(--red)"] { fill: var(--ink); }
+html[data-theme="red"] .path-art circle[fill="var(--light)"] { fill: var(--white); }
+
+/* Secciones: la "gris" es un rojo un poco más oscuro; la franja "Asegurá tu lugar" (roja) pasa a azul */
+html[data-theme="red"] .section--light { background: var(--page-alt); }
+html[data-theme="red"] .cta { background: var(--blue); }
+
+/* Cartelera: TUMO Tank ya era roja → tarjeta blanca con detalles rojos */
+html[data-theme="red"] .card--red { background: var(--white); color: var(--ink); }
+html[data-theme="red"] .card--red .card__media { background: rgba(231, 82, 39, 0.12); }
+html[data-theme="red"] .card--red .day { background: var(--light); }
+html[data-theme="red"] .card--red .sched__time { background: var(--red); color: var(--white); }
+html[data-theme="red"] .card--red .card__signup { background: var(--red); color: var(--white); }
+html[data-theme="red"] .card--red .card__badge { background: var(--light); }
+html[data-theme="red"] .card--skeleton { background: linear-gradient(100deg, rgba(255, 255, 255, 0.15) 40%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0.15) 60%) 0 0 / 300% 100%; }
+html[data-theme="red"] .legend .state { background: var(--white); }
+/* El panel de TUMO Tank tampoco va rojo sobre rojo */
+html[data-theme="red"] .lab-panel--red { --panel-bg: var(--ink); }
+
+/* Preguntas frecuentes y formulario: cajas blancas con texto oscuro */
+html[data-theme="red"] .faq details { background: var(--white); color: var(--ink); }
+html[data-theme="red"] .faq__status .status { border-color: var(--red); }
+html[data-theme="red"] .signup__block,
+html[data-theme="red"] .signup-done__next { color: var(--ink); }
+html[data-theme="red"] .chosen { border-color: var(--ink); }
+html[data-theme="red"] .form-hero .kicker { color: var(--yellow); }
+html[data-theme="red"] .signup__submit .btn--red { background: var(--ink); }
+html[data-theme="red"] .signup__msg { color: var(--yellow); }
