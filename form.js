@@ -148,10 +148,17 @@ function renderRequirements(r) {
         return;
     }
     const several = req.cursos.length > 1;
-    const hint = several ? (req.modo === "any" ? "alcanza con uno" : "hacen falta todos") : "";
+    // Sólo se aclara cuando alcanza con uno; si hacen falta todos, los ✓ / ✕ ya lo dicen
+    const hint = several && req.modo === "any" ? "alcanza con tener uno aprobado" : "";
+    // Qué le falta: en "todos" los no aprobados; en "alcanza con uno", cualquiera de la lista
+    const missing = req.cursos.filter((c) => c.estado !== "ok").map((c) => c.curso);
+    const join = (list, last) => list.length > 1 ? `${list.slice(0, -1).join(", ")} ${last} ${list[list.length - 1]}` : list[0];
+    const notYet = req.modo === "any" && several
+        ? `Todavía no cumplís el requisito: necesitás tener aprobado ${join(missing, "o")}.`
+        : `Todavía no cumplís el requisito: te falta aprobar ${join(missing, "y")}.`;
     const verdict = {
         ok: ["ok", "¡Cumplís el requisito! Podés solicitar vacante en esta actividad."],
-        no_cumple: ["no", "Todavía no cumplís el requisito de esta actividad."],
+        no_cumple: ["no", missing.length ? notYet : "Todavía no cumplís el requisito de esta actividad."],
     }[r.status] || ["unknown", req.sinHistorial
         ? "No encontramos tu historial de cursos. Podés enviar la solicitud y el equipo de TUMO lo va a revisar."
         : "No pudimos confirmar todos los cursos. Podés enviar la solicitud y el equipo de TUMO lo va a revisar."];
