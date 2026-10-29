@@ -51,13 +51,13 @@ const signupUrl = (act) => `inscripcion.html?actividad=${encodeURIComponent(act.
 //           La columna "Imagen" de la planilla, si está completa, le gana a esta.
 //   zoom:   (opcional) agranda la imagen en la tarjeta, si el dibujo queda chico (1.5 = 50% más grande)
 const LOOKS = {
-    "musica-cine":      { color: "blue",   art: "blue" },
-    "tumogotchi":       { color: "purple", art: "red" },
+    "musica-cine":      { color: "blue",   art: "notes" },
+    "tumogotchi":       { color: "purple", art: "pet" },
     "animacion-gifs":   { color: "yellow", art: "yellow" },
-    "juego-cartas":     { color: "dark",   art: "dark" },
+    "juego-cartas":     { color: "dark",   art: "cards" },
     "carreras-iot":     { color: "green",  art: "red" },
     "sonido-codigo":    { color: "teal",   art: "blue" },
-    "personajes-ia-3d": { color: "pink",   art: "yellow" },
+    "personajes-ia-3d": { color: "pink",   art: "character" },
     "tumo-tank":        { color: "red",    art: "dark", imagen: "img/Logomotion.gif", zoom: 1.5 },
 };
 
@@ -115,6 +115,56 @@ const ART = {
             <span class="art-robot__gear art-robot__gear--big"></span>
             <span class="art-robot__gear art-robot__gear--small"></span>
             <div class="art-robot__head"><i></i><i></i></div>
+        </div>`,
+
+    // Creación de cartas: una carta que se da vuelta, dos que se abanican y un dado que rueda
+    cards: `
+        <div class="art-cards">
+            <span class="art-cards__card art-cards__card--l"><i>K</i><b>♣</b></span>
+            <span class="art-cards__card art-cards__card--r"><i>7</i><b>♦</b></span>
+            <div class="art-cards__flip">
+                <span class="art-cards__face art-cards__face--front"><i>A</i><b>♥</b></span>
+                <span class="art-cards__face art-cards__face--back"></span>
+            </div>
+            <span class="art-cards__die"><i></i><i></i><i></i></span>
+        </div>`,
+
+    // Música para cine: notas que suben desde una cinta de película, sobre un pentagrama
+    notes: `
+        <div class="art-notes">
+            <div class="art-notes__staff"><i></i><i></i><i></i><i></i><i></i></div>
+            <span class="art-notes__note" style="--x:30px;--d:0s">♪</span>
+            <span class="art-notes__note" style="--x:85px;--d:-0.8s">♫</span>
+            <span class="art-notes__note" style="--x:140px;--d:-1.6s">♪</span>
+            <span class="art-notes__note" style="--x:195px;--d:-2.4s">♬</span>
+            <span class="art-notes__note" style="--x:240px;--d:-3.2s">♫</span>
+            <div class="art-notes__film"></div>
+        </div>`,
+
+    // Personajes 3D: un personaje que gira sobre una base (el giro es una ilusión: la cara se desliza)
+    character: `
+        <div class="art-char">
+            <span class="art-char__spark" style="--x:30px;--y:30px;--d:0s">✦</span>
+            <span class="art-char__spark" style="--x:225px;--y:50px;--d:-0.7s">✦</span>
+            <span class="art-char__spark" style="--x:205px;--y:10px;--d:-1.4s">✦</span>
+            <div class="art-char__table"><span></span></div>
+            <div class="art-char__fig">
+                <span class="art-char__head"><span class="art-char__face"><i></i><i></i><u></u></span></span>
+                <span class="art-char__body"><span class="art-char__badge"></span></span>
+            </div>
+        </div>`,
+
+    // TumoGotchi: el aparatito con su mascota de píxeles, un corazón y los botones
+    pet: `
+        <div class="art-pet">
+            <div class="art-pet__egg">
+                <div class="art-pet__screen">
+                    <span class="art-pet__heart">♥</span>
+                    <span class="art-pet__pet"><i></i><i></i></span>
+                    <span class="art-pet__floor"></span>
+                </div>
+                <div class="art-pet__btns"><i></i><i></i><i></i></div>
+            </div>
         </div>`,
 };
 

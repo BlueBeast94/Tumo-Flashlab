@@ -411,8 +411,14 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .card__media img,
 .card__media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(var(--zoom, 1)); }
 /* Las animaciones del panel son más grandes: se achican para la tarjeta */
-.card__media > div:not(.card__caption) { transform: scale(0.7); transform-origin: center 35%; }
-.card__media > .art-game { transform: none; position: absolute; inset: 0; }
+/* Las animaciones miden ~280×180 y el área de la imagen es más chica: se centran exacto y se achican */
+.card__media > div:not(.card__caption) {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(var(--art-scale, 0.75));
+}
+.card__media > .art-game { transform: none; left: 0; top: 0; inset: 0; }
 .card h3 { text-align: center; line-height: 1.1; }
 /* Horario y estado en la misma fila */
 .sched__row { display: flex; align-items: center; justify-content: space-between; gap: 0.35rem; flex-wrap: wrap; }
@@ -424,7 +430,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .card .sched--sm .sched__time { font-size: 0.9rem; padding: 0.45em 0.75em 0.45em 0.6em; }
 /* Estado: arriba a la derecha de la imagen, siempre en el mismo lugar */
 .card__badge { position: absolute; top: 0.6rem; right: 0.6rem; z-index: 1; font-size: 0.74rem; padding: 0.45em 0.75em 0.45em 0.6em; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
-.card__media > .art-robot { transform: scale(0.6) translateX(-12%); }
+.card__media > .art-robot { --art-scale: 0.6; }
 .card__badge.state--abierta { color: #1a8a53; }
 .card .sched--sm { justify-items: stretch; }
 .card .sched--sm .day { flex: 1; }
@@ -768,6 +774,244 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes bob { 50% { transform: translateY(-8px); } }
 @keyframes blink-eye { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+
+/* --- Creación de cartas --- */
+.art-cards { position: relative; width: 280px; height: 180px; perspective: 700px; }
+.art-cards__card,
+.art-cards__face {
+    position: absolute;
+    width: 76px;
+    height: 108px;
+    border-radius: 10px;
+    background: var(--white);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+}
+.art-cards__card { top: 40px; left: 102px; transform-origin: 50% 120%; }
+.art-cards__card--l { animation: fan-l 3s ease-in-out infinite; }
+.art-cards__card--r { animation: fan-r 3s ease-in-out infinite; }
+.art-cards__card i, .art-cards__face i { position: absolute; top: 6px; left: 8px; font: 900 15px var(--font); font-style: normal; }
+.art-cards__card b, .art-cards__face b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 38px; }
+.art-cards__card--l { color: var(--ink); }
+.art-cards__card--r, .art-cards__face--front { color: var(--red); }
+.art-cards__flip {
+    position: absolute;
+    top: 30px;
+    left: 102px;
+    width: 76px;
+    height: 108px;
+    transform-style: preserve-3d;
+    animation: flip 3s cubic-bezier(.6, 0, .3, 1) infinite;
+}
+.art-cards__face { inset: 0; backface-visibility: hidden; }
+.art-cards__face--back {
+    transform: rotateY(180deg);
+    background: repeating-linear-gradient(45deg, var(--red) 0 8px, #f07a52 8px 16px);
+    border: 5px solid var(--white);
+}
+.art-cards__die {
+    position: absolute;
+    right: 18px;
+    bottom: 14px;
+    width: 34px;
+    height: 34px;
+    padding: 6px;
+    border-radius: 8px;
+    background: var(--yellow);
+    display: grid;
+    grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+    animation: roll 3s ease-in-out infinite;
+}
+.art-cards__die i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); place-self: center; }
+.art-cards__die i:nth-child(1) { grid-area: 1 / 1; }
+.art-cards__die i:nth-child(2) { grid-area: 2 / 2; }
+.art-cards__die i:nth-child(3) { grid-area: 3 / 3; }
+@keyframes fan-l { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(-24deg) translateX(-8px); } }
+@keyframes fan-r { 0%, 100% { transform: rotate(8deg); } 50% { transform: rotate(24deg) translateX(8px); } }
+@keyframes flip {
+    0%, 15% { transform: translateY(0) rotateY(0); }
+    35% { transform: translateY(-22px) rotateY(90deg); }
+    50%, 65% { transform: translateY(0) rotateY(180deg); }
+    85% { transform: translateY(-22px) rotateY(270deg); }
+    100% { transform: translateY(0) rotateY(360deg); }
+}
+@keyframes roll {
+    0%, 100% { transform: translate(0, 0) rotate(0); }
+    20% { transform: translate(-40px, -30px) rotate(-200deg); }
+    40% { transform: translate(-70px, 0) rotate(-360deg); }
+    60% { transform: translate(-70px, 0) rotate(-360deg); }
+    80% { transform: translate(-30px, -24px) rotate(-180deg); }
+}
+
+/* --- Música para cine --- */
+.art-notes { position: relative; width: 280px; height: 180px; overflow: hidden; }
+.art-notes__staff { position: absolute; left: 0; right: 0; top: 36px; display: grid; gap: 10px; }
+.art-notes__staff i { height: 2px; background: rgba(255, 255, 255, 0.35); }
+.art-notes__note {
+    position: absolute;
+    left: var(--x);
+    bottom: 34px;
+    font-size: 34px;
+    line-height: 1;
+    color: var(--yellow);
+    animation: note-up 4s ease-in infinite var(--d);
+}
+.art-notes__note:nth-of-type(even) { color: var(--white); }
+.art-notes__film {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 30px;
+    background:
+        repeating-linear-gradient(90deg, transparent 0 8px, rgba(255, 255, 255, 0.85) 8px 18px, transparent 18px 26px) 0 5px / 26px 6px repeat-x,
+        repeating-linear-gradient(90deg, transparent 0 8px, rgba(255, 255, 255, 0.85) 8px 18px, transparent 18px 26px) 0 19px / 26px 6px repeat-x,
+        var(--ink);
+    animation: film 1.2s linear infinite;
+}
+@keyframes note-up {
+    0% { transform: translate(0, 0) rotate(-10deg) scale(0.6); opacity: 0; }
+    15% { opacity: 1; }
+    50% { transform: translate(14px, -70px) rotate(10deg) scale(1); }
+    85% { opacity: 1; }
+    100% { transform: translate(-6px, -140px) rotate(-8deg) scale(1.1); opacity: 0; }
+}
+@keyframes film { to { background-position: -26px 5px, -26px 19px, 0 0; } }
+
+/* --- Personajes 3D --- */
+.art-char { position: relative; width: 280px; height: 180px; }
+.art-char__fig { position: absolute; left: 105px; top: 26px; display: grid; justify-items: center; animation: bob 2.4s ease-in-out infinite; }
+.art-char__head {
+    position: relative;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: radial-gradient(circle at 35% 30%, #fff 0 30%, #ffd3e3 70%, #f2a5c3);
+}
+.art-char__face { position: absolute; inset: 0; animation: turn 3s linear infinite; }
+.art-char__face i {
+    position: absolute;
+    top: 28px;
+    width: 9px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--ink);
+}
+.art-char__face i:first-child { left: 22px; }
+.art-char__face i:nth-child(2) { left: 39px; }
+.art-char__face u {
+    position: absolute;
+    top: 46px;
+    left: 26px;
+    width: 18px;
+    height: 8px;
+    border-radius: 0 0 12px 12px;
+    background: var(--ink);
+}
+.art-char__body {
+    position: relative;
+    width: 62px;
+    height: 58px;
+    margin-top: -4px;
+    border-radius: 26px 26px 14px 14px;
+    overflow: hidden;
+    background: linear-gradient(90deg, #c71f5f, var(--blue) 50%, #1a20a8);
+}
+.art-char__badge {
+    position: absolute;
+    top: 18px;
+    left: 23px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--yellow);
+    animation: turn 3s linear infinite;
+}
+/* La base gira: un círculo achatado con borde punteado */
+.art-char__table { position: absolute; left: 70px; bottom: 6px; width: 140px; height: 140px; transform: scaleY(0.22); transform-origin: bottom; }
+.art-char__table span {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 8px dashed rgba(255, 255, 255, 0.7);
+    animation: spin 3s linear infinite;
+}
+.art-char__spark {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    font-size: 22px;
+    color: var(--yellow);
+    animation: twinkle 2.1s ease-in-out infinite var(--d);
+}
+/* La cara (y el escudo del cuerpo) se desliza de un costado al otro y se achica en los bordes: parece que gira */
+@keyframes turn {
+    0% { transform: translateX(-44px) scaleX(0.3); opacity: 0; }
+    12% { opacity: 1; }
+    25% { transform: translateX(-24px) scaleX(0.65); }
+    50% { transform: translateX(0) scaleX(1); }
+    75% { transform: translateX(24px) scaleX(0.65); }
+    88% { opacity: 1; }
+    100% { transform: translateX(44px) scaleX(0.3); opacity: 0; }
+}
+@keyframes twinkle { 0%, 100% { transform: scale(0.4) rotate(0); opacity: 0.3; } 50% { transform: scale(1.1) rotate(45deg); opacity: 1; } }
+
+/* --- TumoGotchi --- */
+.art-pet { position: relative; width: 280px; height: 180px; display: grid; place-items: center; }
+.art-pet__egg {
+    position: relative;
+    width: 132px;
+    height: 160px;
+    padding-top: 30px;
+    border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%;
+    background: radial-gradient(circle at 35% 25%, #ffe08f, var(--yellow) 60%, #e0950c);
+    box-shadow: inset -8px -10px 0 rgba(0, 0, 0, 0.1), 0 8px 18px rgba(0, 0, 0, 0.25);
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    gap: 12px;
+    animation: wobble 3s ease-in-out infinite;
+}
+.art-pet__screen {
+    position: relative;
+    width: 82px;
+    height: 64px;
+    border-radius: 10px;
+    border: 5px solid var(--ink);
+    background: #c9e3a4;
+    overflow: hidden;
+}
+.art-pet__floor { position: absolute; left: 0; right: 0; bottom: 8px; height: 2px; background: #5b6e3c; }
+/* Mascota de píxeles: se mueve a saltitos, como en las pantallitas de antes */
+.art-pet__pet {
+    position: absolute;
+    bottom: 10px;
+    left: 6px;
+    width: 22px;
+    height: 18px;
+    border-radius: 6px 6px 3px 3px;
+    background: #2b3a1a;
+    animation: pet-walk 4s steps(8) infinite, pet-hop 0.5s steps(2) infinite;
+}
+.art-pet__pet i { position: absolute; top: 5px; width: 4px; height: 4px; background: #c9e3a4; }
+.art-pet__pet i:first-child { left: 5px; }
+.art-pet__pet i:nth-child(2) { right: 5px; }
+.art-pet__heart {
+    position: absolute;
+    top: 2px;
+    left: 34px;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--red);
+    animation: heart 4s ease-in-out infinite;
+}
+.art-pet__btns { display: flex; gap: 12px; }
+.art-pet__btns i { width: 16px; height: 16px; border-radius: 50%; background: var(--ink); box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.2); }
+.art-pet__btns i:nth-child(2) { animation: press 4s infinite; }
+@keyframes wobble { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes pet-walk { 0%, 100% { left: 6px; transform: scaleX(1); } 49% { left: 50px; transform: scaleX(1); } 50% { left: 50px; transform: scaleX(-1); } }
+@keyframes pet-hop { 50% { margin-bottom: 4px; } }
+@keyframes heart { 0%, 40% { transform: translateY(14px) scale(0); opacity: 0; } 55% { transform: translateY(0) scale(1.2); opacity: 1; } 75% { transform: translateY(-4px) scale(1); opacity: 1; } 90%, 100% { transform: translateY(-14px) scale(0.8); opacity: 0; } }
+@keyframes press { 0%, 36%, 46%, 100% { transform: translateY(0); } 40% { transform: translateY(3px) scale(0.9); } }
 
 /* ---------- Página de inscripción ---------- */
 .page-form { background: var(--light); }
