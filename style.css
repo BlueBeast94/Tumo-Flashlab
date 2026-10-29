@@ -92,7 +92,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .btn--yellow { background: var(--yellow); color: var(--ink); }
 .btn--ghost  { border-color: var(--ink);  color: var(--ink); background: transparent; }
 .btn--ghost:hover { background: var(--ink); color: var(--white); }
-.btn--sm { padding: 0.6em 1.2em; font-size: 0.9rem; }
+.btn--sm { padding: 0.6em 1.2em; font-size: 0.9rem; white-space: nowrap; }
 .btn--lg { padding: 1.1em 2.4em; font-size: 1.15rem; }
 
 /* ---------- Logo ---------- */
@@ -771,6 +771,9 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 
 /* ---------- Página de inscripción ---------- */
 .page-form { background: var(--light); }
+/* El pie queda siempre abajo, aunque el contenido sea corto (por ejemplo, mientras carga) */
+.page-form { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+.page-form main { flex: 1 0 auto; }
 .page-form .nav { background: rgba(242, 242, 242, 0.92); }
 
 .form-hero {
@@ -1048,6 +1051,30 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .confirm h2 { font-size: clamp(1.5rem, 5vw, 1.9rem); line-height: 1.15; }
 .confirm h2 span { color: var(--blue); }
 .confirm__meta { margin-top: 1rem; }
+.confirm__block { margin-top: 1.2rem; }
+.confirm__label { margin-bottom: 0.5rem; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--red); }
+/* Horarios para elegir: pastillas; la elegida queda azul llena */
+.confirm__times { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.time-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    padding: 0.6em 1.1em 0.6em 0.85em;
+    border: 2px solid var(--blue);
+    border-radius: var(--radius);
+    background: var(--white);
+    color: var(--blue);
+    font: 800 1rem var(--font);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.time-opt svg { width: 1em; height: 1em; }
+.time-opt small { font-size: 0.72rem; font-weight: 700; opacity: 0.8; }
+.time-opt:hover { background: rgba(39, 48, 231, 0.08); }
+.time-opt[aria-checked="true"] { background: var(--blue); color: var(--white); }
+.time-opt:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+/* "Sí, continuar" apagado hasta elegir horario */
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
 .confirm__note { margin-top: 1rem; color: var(--muted); }
 .confirm__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.6rem; }
 @media (max-width: 560px) { .confirm__actions .btn { flex: 1 1 100%; } }

@@ -125,11 +125,18 @@
     <dialog class="confirm" data-confirm aria-labelledby="confirm-title">
         <p class="kicker">Confirmá tu elección</p>
         <h2 id="confirm-title">¿Querés solicitar una vacante en <span data-confirm-name></span>?</h2>
-        <div class="confirm__meta" data-confirm-meta></div>
-        <p class="chosen__waitlist" data-confirm-waitlist hidden>No quedan vacantes: vas a entrar en lista de espera.</p>
+        <div class="confirm__block">
+            <p class="confirm__label">Días que tenés que venir</p>
+            <div data-confirm-days></div>
+        </div>
+        <div class="confirm__block">
+            <p class="confirm__label" id="confirm-times-label">Elegí tu horario</p>
+            <div class="confirm__times" data-confirm-times role="radiogroup" aria-labelledby="confirm-times-label"></div>
+        </div>
+        <p class="chosen__waitlist" data-confirm-waitlist hidden>No quedan vacantes en ese horario: vas a entrar en lista de espera.</p>
         <p class="confirm__note">Podés solicitar vacante en <strong>una sola actividad</strong> de diciembre.</p>
         <div class="confirm__actions">
-            <button type="button" class="btn btn--red" data-confirm-yes>Sí, continuar</button>
+            <button type="button" class="btn btn--red" data-confirm-yes disabled>Sí, continuar</button>
             <a href="index.html#actividades" class="btn btn--ghost">Volver a la cartelera</a>
         </div>
     </dialog>

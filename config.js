@@ -145,7 +145,7 @@ function scheduleHtml(act, size = "md", extra = "") {
     }).join("");
     if (size === "sm") {
         return `<div class="sched sched--sm" role="group" aria-label="${escapeHtml(act.dias)}, ${time}">
-            <div class="sched__row${times.length > 1 ? " sched__row--multi" : ""}">${timeBadge}${extra}</div><div class="sched__days">${tiles}</div></div>`;
+            ${timeBadge || extra ? `<div class="sched__row${times.length > 1 ? " sched__row--multi" : ""}">${timeBadge}${extra}</div>` : ""}<div class="sched__days">${tiles}</div></div>`;
     }
     const legend = [
         month ? `<span>${capitalize(month)}</span>` : "",

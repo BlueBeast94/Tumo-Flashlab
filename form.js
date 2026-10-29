@@ -114,15 +114,41 @@ $("[data-horario-select]").addEventListener("change", (e) => {
 });
 
 // Confirmación 1: al llegar con la actividad elegida
+// Primero los días que hay que venir, después se elige el horario. "Sí, continuar" se habilita
+// recién con un horario elegido, y el formulario queda con esa actividad y ese horario.
 function openConfirm() {
     const dialog = $("[data-confirm]");
+    const yes = $("[data-confirm-yes]");
+    const times = $("[data-confirm-times]");
     $("[data-confirm-name]").textContent = info.nombre; // sin el grupo: `${act.nombre} (grupo ${act.grupo})`
-    const opciones = act ? [act] : grupos;
-    $("[data-confirm-meta]").innerHTML = scheduleHtml({ ...info, horarios: opciones.map((g) => g.horario) }, "sm") +
-        (opciones.length > 1 ? '<p class="confirm__hint">El horario lo elegís en el formulario.</p>' : "");
-    $("[data-confirm-waitlist]").hidden = !opciones.every((g) => g.estado === "espera");
+    $("[data-confirm-days]").innerHTML = scheduleHtml({ ...info, horarios: [] }, "sm");
+
+    // Si se llegó con un grupo elegido (o hay uno solo), ya viene marcado
+    let elegido = act;
+    times.innerHTML = grupos.map((g) => `
+        <button type="button" class="time-opt" role="radio" data-grupo="${escapeHtml(g.id)}">
+            ${CLOCK}<span>${escapeHtml(timeText(g.horario))}</span>
+            ${g.estado === "espera" ? '<small>lista de espera</small>' : ""}
+        </button>`).join("");
+    const mark = () => {
+        $$(".time-opt", times).forEach((b) => b.setAttribute("aria-checked", String(Boolean(elegido) && b.dataset.grupo === elegido.id)));
+        yes.disabled = !elegido;
+        $("[data-confirm-waitlist]").hidden = !(elegido && elegido.estado === "espera");
+    };
+    times.addEventListener("click", (e) => {
+        const b = e.target.closest(".time-opt");
+        if (!b) return;
+        elegido = grupos.find((g) => g.id === b.dataset.grupo) || null;
+        mark();
+    });
+    mark();
+
     dialog.addEventListener("cancel", (e) => e.preventDefault()); // hay que elegir una de las dos opciones
-    $("[data-confirm-yes]").addEventListener("click", () => {
+    yes.addEventListener("click", () => {
+        if (!elegido) return;
+        act = elegido;
+        $("[data-horario-select]").value = act.id; // el formulario queda con el horario elegido
+        updateChoice();
         dialog.close();
         nameInput.focus();
     });
