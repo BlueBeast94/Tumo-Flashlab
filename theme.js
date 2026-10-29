@@ -23,6 +23,17 @@
     const DURATION = 900;
     const EASE = "cubic-bezier(.65, 0, .25, 1)";
 
+    // Durante la animación la página queda quieta: si se scrollea, el círculo (que es una "foto"
+    // de la pantalla) no coincide con lo que hay abajo y al terminar se ve un salto.
+    // Se bloquean los gestos de scroll en vez de ocultar la barra, así nada se corre de lugar.
+    const SCROLL_KEYS = new Set([" ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown"]);
+    const stop = (e) => { if (e.type !== "keydown" || SCROLL_KEYS.has(e.key)) e.preventDefault(); };
+    function lockScroll() {
+        const opts = { passive: false, capture: true };
+        ["wheel", "touchmove", "keydown"].forEach((t) => window.addEventListener(t, stop, opts));
+        return () => ["wheel", "touchmove", "keydown"].forEach((t) => window.removeEventListener(t, stop, opts));
+    }
+
     function switchWithCircle(btn, change) {
         const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (!document.startViewTransition || reduce) return change();
@@ -42,7 +53,12 @@
         ring.style.cssText = `left:${x}px; top:${y}px; width:${end * 2}px; height:${end * 2}px;`;
         document.body.appendChild(ring);
 
+        // El scroll vuelve 1 s después de tocar el botón (o antes, si la animación termina antes)
+        const SCROLL_LOCK_MS = 1000;
+        const unlock = lockScroll();
+        const timer = setTimeout(unlock, SCROLL_LOCK_MS);
         const t = document.startViewTransition(change);
+        t.finished.finally(() => { clearTimeout(timer); unlock(); });
         t.ready.then(() => {
             root.animate(
                 { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
