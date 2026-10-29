@@ -77,6 +77,10 @@ Costo: ${EVENT.price}
 REGLAS DE INSCRIPCIÓN
 ${EVENT.rules.map((r) => `- ${r}`).join("\n")}
 
+PREGUNTAS FRECUENTES (son las respuestas oficiales: si te preguntan algo de esto, respondé lo mismo con tus palabras)
+${(EVENT.faq || []).map(([q, a]) => `- ${q} → ${a}`).join("\n")}
+- Para cambios de actividad u otras consultas sobre una solicitud ya enviada, el mail es familias.cmd@tumo.ar.
+
 CARTELERA (actividades publicadas, cada grupo tiene su horario y su capacidad)
 ${lista}`;
 }

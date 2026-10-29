@@ -16,20 +16,38 @@ const API_URL = `${API_BASE}/api/inscripcion`;
 const EVENT = {
     name: "FlashLabs de diciembre",
     center: "TUMO Barracas",
-    dates: "jueves 10, viernes 11, martes 15 y jueves 17 de diciembre de 2026 (viernes 18: cierre y recuperatorio)",
+    dates: "del jueves 10 al jueves 17 de diciembre de 2026 (encuentros: jueves 10, viernes 11, martes 15 y jueves 17)",
     slots: "tres franjas: 9:00 a 11:00, 14:00 a 16:00 y 17:00 a 19:00 (cada actividad y grupo tiene la suya)",
     place: "TUMO Barracas",
     price: "Gratis",
     contact: "",  // mail o teléfono para casos que no se resuelven en la web (vacío = "acercate a recepción")
     rules: [
         "Cada estudiante puede solicitar vacante en una sola actividad de diciembre.",
-        "Para inscribirse hay que elegir la actividad en la cartelera y completar nombre, apellido y DNI. No se pide el TUMO ID.",
+        "Para inscribirse hay que elegir la actividad en la cartelera y completar el nombre, el apellido y el DNI del estudiante que va a participar (no los del adulto responsable). No se pide el TUMO ID.",
         "El sistema verifica el DNI con los registros de TUMO y los requisitos de la actividad antes de registrar la solicitud.",
-        "Recibir la solicitud no garantiza la vacante: el equipo de TUMO confirma las vacantes y se comunica después.",
+        "Enviar la solicitud es una pre-inscripción: no garantiza la vacante. El equipo de TUMO confirma las vacantes por mail.",
         "Cada actividad y grupo tiene su propia capacidad. Si no hay vacantes, la solicitud entra en lista de espera por orden de llegada.",
         "Los grupos B se abren según la demanda.",
-        "Para cambiar de actividad después de enviar la solicitud hay que contactar al equipo de TUMO.",
         "Las actividades son gratuitas.",
+    ],
+    // Las mismas preguntas frecuentes de index.html: Flashy las usa para responder igual que la página.
+    // Si cambiás una respuesta en la página, cambiala también acá.
+    faq: [
+        ["¿Cuándo son los FlashLabs?", "Del jueves 10 al jueves 17 de diciembre."],
+        ["¿Qué datos me piden?", "El nombre, el apellido y el DNI del estudiante que va a participar."],
+        ["¿Puedo participar si no cumplo con los prerrequisitos?",
+            "Es necesario cumplir con los prerrequisitos para participar. Te recomendamos volver a la cartelera y elegir otro FlashLab."],
+        ["Si me llega el mensaje de recepción, ¿ya tengo la vacante?",
+            "No. Ese mensaje confirma la pre-inscripción, que depende de los requisitos de la actividad y de los cupos disponibles. " +
+            "La vacante se obtiene sólo si llega el mail de confirmación de la vacante y se responde. Hay 5 días para responderlo: " +
+            "si no se responde, se da de baja la inscripción y la vacante pasa a otra persona."],
+        ["¿Me puedo anotar en más de una actividad?", "No. Cada estudiante puede solicitar vacante en una sola actividad."],
+        ["¿Qué pasa si no hay vacantes?",
+            "Quedás en lista de espera. Cuando se libere un lugar te avisamos por mail: hay que estar atento para confirmarlo. " +
+            "También podés elegir otro FlashLab que sí tenga vacantes en la cartelera."],
+        ["¿Y si quiero cambiar de actividad?", "Escribinos a familias.cmd@tumo.ar y ahí te ayudamos a hacer el cambio."],
+        ["¿Cuál es el estado de mi solicitud?",
+            "Se consulta con el DNI del estudiante en las preguntas frecuentes de la página o preguntándole a Flashy."],
     ],
 };
 

@@ -69,19 +69,19 @@
 
             <!-- Datos del estudiante -->
             <fieldset class="signup__block">
-                <legend><span class="signup__num">1</span> Tus datos</legend>
+                <legend><span class="signup__num">1</span> Datos del estudiante</legend>
                 <div class="fields">
                     <label class="field field--wide" data-field="nombre">
-                        <span>Nombre y apellido</span>
+                        <span>Nombre y apellido del estudiante</span>
                         <input name="nombre" required autocomplete="name" placeholder="Ej.: Martina Gómez">
                         <span class="field__hint" data-hint="nombre"></span>
                     </label>
                     <label class="field field--wide" data-field="dni">
-                        <span data-doc-label>DNI</span>
+                        <span data-doc-label>DNI del estudiante</span>
                         <input name="dni" required inputmode="numeric" maxlength="16" autocomplete="off" autocapitalize="characters" placeholder="Sin puntos ni espacios">
                         <span class="verify" data-verify aria-live="polite">
                             <span class="verify__icon" aria-hidden="true"></span>
-                            <span class="verify__text" data-verify-text>Lo usamos para identificarte en los registros de TUMO.</span>
+                            <span class="verify__text" data-verify-text>El DNI de quien va a participar, no el del adulto responsable.</span>
                         </span>
                     </label>
                     <button type="button" class="doc-toggle" data-doc-toggle>Tengo pasaporte u otro documento</button>
@@ -110,6 +110,11 @@
             <h2>¡Recibimos tu inscripción!</h2>
             <p>Pronto nos vamos a contactar con vos para confirmarte tu vacante. ¡Gracias!</p>
             <p class="signup-done__next" data-done-detail></p>
+            <!-- Aviso de plazo: sin respuesta al mail de confirmación en 5 días se pierde la vacante -->
+            <p class="signup-done__warn">
+                <strong>Importante:</strong> esto es una <strong>pre-inscripción</strong>. Si te confirmamos la vacante, te va a llegar un mail:
+                <strong>respondelo dentro de los 5 días</strong>. Si no lo respondés, se da de baja tu inscripción y perdés la vacante.
+            </p>
             <a href="index.html" class="btn btn--blue">Volver al inicio</a>
         </section>
 
@@ -134,7 +139,7 @@
             <span class="logo-tumo">TUMO</span>
             <span class="logo-city">Barracas</span>
         </div>
-        <p>Centro de tecnologías creativas para adolescentes. Gratuito.</p>
+        <p>Centro de tecnologías creativas para adolescentes.</p>
         <p class="footer__small">© 2026 TUMO Barracas</p>
     </footer>
 

@@ -1093,6 +1093,14 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     animation: pop 0.5s cubic-bezier(.3, 1.6, .5, 1) both;
 }
 .signup-done__next { padding: 1rem 1.3rem; border-radius: 20px; background: var(--white); }
+.signup-done__warn {
+    padding: 1rem 1.3rem;
+    border-radius: 20px;
+    background: #fff4dc;
+    border: 2px solid var(--yellow);
+    color: var(--ink);
+    text-align: left;
+}
 
 .status-wrap { padding-bottom: clamp(3rem, 8vw, 5rem); }
 .status {
@@ -1171,6 +1179,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 }
 .faq details[open] summary::after { transform: rotate(45deg); }
 .faq details p { margin-top: 0.8rem; color: var(--muted); }
+.faq__link { color: var(--blue); font-weight: 800; }
 /* "¿Cuál es el estado de mi solicitud?": al abrirse muestra la consulta por documento */
 .faq__status { scroll-margin-top: 90px; }
 .faq__status .status { margin-top: 1rem; }
@@ -1599,9 +1608,13 @@ html[data-theme="red"] .meta-pill--red { background: var(--ink); color: var(--wh
 html[data-theme="red"] .path-art circle[fill="var(--red)"] { fill: var(--ink); }
 html[data-theme="red"] .path-art circle[fill="var(--light)"] { fill: var(--white); }
 
-/* Secciones: la "gris" es un rojo un poco más oscuro; la franja "Asegurá tu lugar" (roja) pasa a azul */
+/* Secciones: la "gris" es un rojo un poco más oscuro; la franja "Asegurá tu lugar" (roja) pasa a blanca */
 html[data-theme="red"] .section--light { background: var(--page-alt); }
-html[data-theme="red"] .cta { background: var(--blue); }
+html[data-theme="red"] .cta { background: var(--white); color: var(--red); }
+html[data-theme="red"] .cta p { color: var(--ink); }
+html[data-theme="red"] .cta__path { opacity: 0.12; }
+html[data-theme="red"] .cta__path path { stroke: var(--red); }
+html[data-theme="red"] .cta .btn--yellow { background: var(--red); color: var(--white); }
 
 /* Cartelera: TUMO Tank ya era roja → tarjeta blanca con detalles rojos */
 html[data-theme="red"] .card--red { background: var(--white); color: var(--ink); }

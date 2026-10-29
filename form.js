@@ -10,7 +10,7 @@ const form = $("[data-signup]");
 const nameInput = form.nombre;
 const dniInput = form.dni;
 const SLOW_MS = 6000;
-const DNI_HINT = "Lo usamos para identificarte en los registros de TUMO.";
+const DNI_HINT = "El DNI de quien va a participar, no el del adulto responsable.";
 
 let act = null;     // grupo elegido (una fila de la planilla); null hasta que se elige el horario
 let info = null;    // datos comunes de la actividad (nombre, días, requisito: iguales en todos los grupos)
@@ -265,7 +265,7 @@ $("[data-doc-toggle]").addEventListener("click", (e) => {
     const other = dniInput.inputMode === "numeric";
     dniInput.inputMode = other ? "text" : "numeric";
     dniInput.placeholder = other ? "Letras y números, sin espacios" : "Sin puntos ni espacios";
-    $("[data-doc-label]").textContent = other ? "Pasaporte u otro documento" : "DNI";
+    $("[data-doc-label]").textContent = other ? "Pasaporte u otro documento del estudiante" : "DNI del estudiante";
     e.currentTarget.textContent = other ? "Tengo DNI" : "Tengo pasaporte u otro documento";
     dniInput.focus();
 });
@@ -359,7 +359,7 @@ function showDone(result) {
     const detail = {
         "Lista de espera": `Por ahora quedaste en <strong>lista de espera</strong> de ${actName()}: todavía no tenés vacante. Si se libera una, te contactamos.`,
         "En validación": `Antes de confirmarte una vacante en ${actName()}, el equipo va a revisar el requisito de la actividad.`,
-    }[result.estado] || `Solicitaste vacante en ${actName()}, ${actWhen()}. Tu vacante todavía no está confirmada.`;
+    }[result.estado] || `Tu pre-inscripción en ${actName()}, ${actWhen()}, quedó registrada. Todavía no tenés la vacante confirmada.`;
     const priority = result.estado !== "En validación" && result.cumple === false
         ? " Como todavía no cumplís el requisito, tienen prioridad quienes sí lo cumplen."
         : "";
