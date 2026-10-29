@@ -1590,6 +1590,25 @@ html:has(dialog[open]), html:has(dialog[open]) body { overflow: hidden; }
 }
 .theme-toggle:hover { transform: rotate(-20deg) scale(1.06); }
 .theme-toggle:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.theme-toggle.is-spinning { animation: toggle-spin 0.9s cubic-bezier(.65, 0, .25, 1); }
+@keyframes toggle-spin { 40% { transform: rotate(200deg) scale(1.25); } 100% { transform: rotate(360deg) scale(1); } }
+
+/* Cambio de color animado (theme.js): la página nueva aparece en círculo, sin el fundido de siempre */
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-new(root) { z-index: 2; }
+/* Anillo de colores TUMO que gira en el borde del círculo */
+.theme-ring {
+    position: fixed;
+    z-index: 9999;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0);
+    background: conic-gradient(var(--yellow), var(--blue), var(--red), var(--yellow), var(--blue), var(--red), var(--yellow));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 26px), #000 calc(100% - 25px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 26px), #000 calc(100% - 25px));
+}
+
 /* El punto muestra el color al que se cambia: rojo desde el tema blanco, blanco desde el rojo */
 .theme-toggle__dot {
     width: 1.25rem;
