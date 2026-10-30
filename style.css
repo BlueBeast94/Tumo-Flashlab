@@ -1102,6 +1102,16 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 }
 @media (max-width: 852px) { .signup-state { margin-left: var(--gutter); margin-right: var(--gutter); } }
 .signup-state__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+/* confirmar.html: botón "Confirmar" que llega desde el mail */
+.confirm-invite { font-weight: 500; font-size: 1rem; }
+.confirm-invite h2 { font-size: clamp(1.8rem, 5vw, 2.6rem); font-weight: 900; letter-spacing: -0.03em; line-height: 1.05; }
+.confirm-invite__sched { width: 100%; }
+.confirm-invite__text { font-weight: 700; font-size: 1.1rem; }
+.confirm-invite__btn { font-size: 1.15rem; padding: 0.9em 2.6em; text-transform: uppercase; letter-spacing: 0.04em; }
+.confirm-invite__error { color: var(--red); font-weight: 700; }
+.confirm-invite__error[hidden] { display: none; }
+html[data-theme="red"] .confirm-invite { color: var(--ink); }
 .spinner {
     width: 2.2rem;
     height: 2.2rem;
@@ -1352,6 +1362,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     gap: 1rem;
 }
 .signup-done[hidden] { display: none; }
+.signup-done > .btn { margin: 1rem 0 clamp(2.5rem, 6vw, 4rem); } /* aire arriba y antes del footer */
 .signup-done > * { max-width: 46ch; }
 .signup-done__icon {
     display: grid;
@@ -1702,6 +1713,20 @@ html:has(dialog[open]), html:has(dialog[open]) body { overflow: hidden; }
 }
 .chat__link::after { content: " →"; }
 .chat__link:hover { background: var(--blue); }
+.chat__wa {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    margin: 0.3em 0.1em 0.1em;
+    padding: 0.4em 1em;
+    border-radius: var(--radius);
+    background: #25d366; /* verde WhatsApp */
+    color: #fff;
+    font-weight: 800;
+    text-decoration: none;
+}
+.chat__wa svg { width: 1.2em; height: 1.2em; flex: none; }
+.chat__wa:hover { background: #1da851; }
 .chat__msg--user { align-self: flex-end; background: var(--blue); color: var(--white); border-bottom-right-radius: 6px; }
 
 .chat__typing { display: flex; gap: 5px; padding: 14px 16px; }

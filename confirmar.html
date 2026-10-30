@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmar asistencia · FlashLabs TUMO Barracas</title>
+    <meta name="description" content="Confirmá tu asistencia a los FlashLabs de diciembre de TUMO Barracas.">
+    <meta name="robots" content="noindex">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=Caveat:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="theme.js"></script>
+</head>
+<body class="page-form">
+
+    <!-- Llega desde el botón "Confirmar" del mail de vacante confirmada: confirmar.html?t=<token de la solicitud>.
+         Se confirma recién al tocar el botón de esta página (no al abrirla), así los antivirus del mail
+         que abren los links solos no confirman por la familia. -->
+    <header class="nav">
+        <a href="index.html" class="nav__logo" aria-label="TUMO Barracas — volver al inicio">
+            <span class="logo-tumo">TUMO</span>
+            <span class="logo-city">Barracas</span>
+        </a>
+        <div class="nav__actions">
+            <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Cambiar a fondo rojo"><span class="theme-toggle__dot"></span></button>
+        </div>
+    </header>
+
+    <main>
+        <section class="form-hero">
+            <p class="kicker">FlashLabs · Diciembre 2026</p>
+            <h1>Confirm<span class="hand hand--red">á</span> tu asistencia</h1>
+        </section>
+
+        <section class="signup-state" data-view="loading">
+            <div class="spinner" aria-hidden="true"></div>
+            <p>Buscando tu vacante…</p>
+        </section>
+
+        <section class="signup-state" data-view="message" hidden>
+            <p class="signup-state__text" data-message></p>
+            <div class="signup-state__actions">
+                <a href="index.html" class="btn btn--blue">Volver al inicio</a>
+            </div>
+        </section>
+
+        <section class="signup-state confirm-invite" data-view="invite" hidden>
+            <p class="chosen__label">¡Hola <span data-name></span>! Tenés una vacante en</p>
+            <h2 data-activity></h2>
+            <div class="confirm-invite__sched" data-sched></div>
+            <p class="confirm-invite__text">Para terminar de acceder al FlashLab tenés que confirmar la asistencia con este botón.</p>
+            <button type="button" class="btn btn--blue confirm-invite__btn" data-confirm>Confirmar</button>
+            <p class="confirm-invite__error" data-error hidden></p>
+        </section>
+
+        <section class="signup-done" data-view="done" hidden>
+            <span class="signup-done__icon">✓</span>
+            <h2>¡Asistencia confirmada!</h2>
+            <p data-done-text></p>
+            <a href="index.html" class="btn btn--blue">Volver al inicio</a>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer__logo">
+            <span class="logo-tumo">TUMO</span>
+            <span class="logo-city">Barracas</span>
+        </div>
+        <p>Centro de tecnologías creativas para adolescentes.</p>
+        <p class="footer__small">© 2026 TUMO Barracas</p>
+    </footer>
+
+    <script src="config.js"></script>
+    <script>
+        (() => {
+            const $ = (sel) => document.querySelector(sel);
+            const token = new URLSearchParams(location.search).get("t") || "";
+            const show = (view) => document.querySelectorAll("[data-view]").forEach((v) => { v.hidden = v.dataset.view !== view; });
+            const message = (text) => { $("[data-message]").textContent = text; show("message"); };
+            const done = (actividad) => {
+                $("[data-done-text]").textContent = `Te esperamos en ${actividad}. ¡Gracias por confirmar!`;
+                show("done");
+            };
+            const FALLA = "No pudimos cargar tu vacante ahora. Probá de nuevo en un rato.";
+            let info;
+
+            async function load() {
+                if (!/^[0-9a-f-]{36}$/i.test(token)) return message("El link no es válido. Usá el botón del mail que te mandamos.");
+                info = await apiCall({ action: "invitacion", token });
+                if (info.status === "no_encontrado") return message("No encontramos esta vacante. Usá el botón del último mail que te mandamos.");
+                if (info.status !== "ok") return message(FALLA);
+                if (info.confirmado) return done(info.actividad);
+                if (!info.puede) return message(`La vacante en ${info.actividad} ya no está disponible para confirmar. Si creés que es un error, escribinos a familias.cmd@tumo.ar.`);
+                $("[data-name]").textContent = info.nombre;
+                $("[data-activity]").textContent = info.actividad;
+                $("[data-sched]").innerHTML = info.dias ? scheduleHtml(info, "md") : "";
+                show("invite");
+            }
+
+            $("[data-confirm]").addEventListener("click", async (e) => {
+                const btn = e.currentTarget;
+                const error = $("[data-error]");
+                btn.disabled = true;
+                btn.textContent = "Confirmando…";
+                error.hidden = true;
+                const r = await apiCall(null, { action: "confirmar", token });
+                if (r.status === "ok") return done(info.actividad);
+                btn.disabled = false;
+                btn.textContent = "Confirmar";
+                if (r.status === "no_disponible") return message(`La vacante en ${info.actividad} ya no está disponible para confirmar. Si creés que es un error, escribinos a familias.cmd@tumo.ar.`);
+                error.textContent = r.status === "demasiados_intentos" ? "Demasiados intentos. Esperá un minuto y probá de nuevo." : "No pudimos confirmar ahora. Probá de nuevo en un rato.";
+                error.hidden = false;
+            });
+
+            load();
+        })();
+    </script>
+</body>
+</html>

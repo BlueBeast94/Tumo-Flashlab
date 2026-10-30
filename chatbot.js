@@ -6,7 +6,7 @@
 (() => {
     const API = `${API_BASE}/api/chat`; // API_BASE viene de config.js
     const GREETING = "¡Hola! Soy Flashy 🤖 el asistente del Flash Lab. Preguntame lo que quieras sobre las actividades, los horarios o la inscripción.";
-    const SUGGESTIONS = ["¿Cuándo y dónde es?", "¿Qué labs hay?", "¿Cómo me inscribo?", "¿Cuál es el estado de mi solicitud?"];
+    const SUGGESTIONS = ["¿Cuándo y dónde es?", "¿Qué labs hay?", "¿Cómo me inscribo?", "¿Cuál es el estado de mi solicitud?", "Necesito más información"];
     const ERRORS = {
         missing_key: "Todavía no estoy conectado 😅 (falta configurar la API key de Groq).",
         busy: "Estoy recibiendo muchas preguntas. Probá de nuevo en un minuto.",
@@ -80,10 +80,14 @@
     const escapeHtml = (text) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
     // Markdown mínimo: **negrita**, [links](/inscripcion.html), listas con "-" y saltos de línea.
-    // Sólo se convierten en link las páginas del propio sitio.
+    // Sólo se convierten en link las páginas del propio sitio, y [texto](whatsapp) en el botón de WhatsApp.
+    const WA_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3Z"/></svg>';
+    const waLink = (label) => `<a class="chat__wa" href="${escapeHtml(whatsappUrl())}" target="_blank" rel="noopener">${WA_ICON}${label}</a>`;
+
     function format(text) {
         return escapeHtml(text)
             .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\[([^\]]+)\]\(whatsapp\)/gi, (_, label) => waLink(label))
             .replace(/\[([^\]]+)\]\(\/?((?:inscripcion|index)\.html[^)\s]*)\)/g, '<a class="chat__link" href="/$2">$1</a>')
             .split(/\n+/)
             .map((line) => /^\s*[-*•]\s+/.test(line) ? `<li>${line.replace(/^\s*[-*•]\s+/, "")}</li>` : `<p>${line}</p>`)
@@ -129,6 +133,11 @@
         if (!SIGNUP_INTENT.test(question) || /\]\(\/?(inscripcion|index)\.html/.test(reply)) return reply;
         return `${reply}\n${signupLink(question)}`;
     }
+
+    // ---------- Seguir por WhatsApp ----------
+    // "Necesito más información", "quiero hablar con alguien"…: se ofrece WhatsApp sin pasar por la IA
+    const WHATSAPP_INTENT = /m[aá]s info|hablar con (alguien|una persona|un humano)|whats ?app|\bwpp\b|\bwsp\b|me (pueden|podr[ií]an) (llamar|contactar)/i;
+    const WHATSAPP_REPLY = "¡Claro! Podés seguir la consulta con el equipo de TUMO por WhatsApp. Te abre el chat con el mensaje ya escrito 👇\n[Seguir por WhatsApp](whatsapp)";
 
     // ---------- Estado de la solicitud ----------
     // Se responde acá mismo con la planilla (como en las preguntas frecuentes). El documento NO va a la IA:
@@ -187,6 +196,11 @@
         form.classList.add("is-busy");
         const handled = await handleStatus(question);
         form.classList.remove("is-busy");
+        if (!handled && WHATSAPP_INTENT.test(question)) {
+            addMessage("bot", WHATSAPP_REPLY);
+            input.focus();
+            return;
+        }
         if (handled) {
             input.focus();
             return;

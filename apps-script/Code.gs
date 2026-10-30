@@ -30,7 +30,7 @@ const HEADERS = {
   Estudiantes: STUDENT_BASE,
   "Estudiantes manuales": STUDENT_BASE,
   Solicitudes: ["ID", "Fecha", "DNI", "TUMO ID", "Nombre ingresado", "Nombre 360", "Email", "Actividad ID",
-    "Actividad", "Grupo", "Estado", "Prioridad", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas"],
+    "Actividad", "Grupo", "Estado", "Prioridad", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas", "Confirmado por el interesado"],
   Historial: ["Fecha", "Usuario", "Solicitud", "DNI", "Antes", "Después", "Detalle"],
   Mensajes: ["Clave", "Asunto", "Cuerpo"],
   Config: ["Clave", "Valor", "Descripción"],
@@ -107,6 +107,7 @@ const SEED_CONFIG = [
   ["Origen back: columna nombre", "N", ""],
   ["Origen back: columna email", "F", "Mail real de contacto."],
   ["Origen back: columna email 2", "G", "Segundo mail (opcional)."],
+  ["URL del sitio", "https://tumoflashlab.vercel.app", "Dirección de la web. El botón \"Confirmar\" de los mails lleva a esta web."],
 ];
 
 // Datos de "Flash Labs" (descripciones, requisitos y cupos). Se cargan con el menú
@@ -160,13 +161,20 @@ const CATALOGO = {
   },
 };
 
+// Botón "Confirmar" del mail CONFIRMADA: {boton} se cambia por el botón (o por el link, en la versión sin formato).
+// Al tocarlo, la familia confirma en la web y la columna "Confirmado por el interesado" pasa a SÍ.
+const CONFIRM_TEXT = "Para terminar de acceder al FlashLab tenés que confirmar la asistencia con este botón " +
+  "(tenés 5 días; si no, se da de baja la inscripción):\n{boton}";
+const CONFIRM_COL = "Confirmado por el interesado";
+
 const SEED_MENSAJES = [
   ["RECEPCION", "Recibimos tu solicitud para {actividad}",
     "¡Hola {nombre}!\n\nRecibimos tu solicitud para {actividad}.\nDías: {dias}\nHorario: {horario}\n\n" +
     "Importante: tu vacante todavía NO está confirmada. Pronto nos vamos a contactar con vos.\n\n¡Gracias!\nTUMO Barracas"],
   ["CONFIRMADA", "¡Tu vacante en {actividad} está confirmada!",
     "¡Hola {nombre}!\n\nTu vacante en {actividad} está confirmada.\n\n" +
-    "Días: {dias}\nHorario: {horario}\nLugar: TUMO Barracas\n\nEs importante asistir a todas las sesiones.\n\n¡Te esperamos!\nTUMO Barracas"],
+    "Días: {dias}\nHorario: {horario}\nLugar: TUMO Barracas\n\n" + CONFIRM_TEXT + "\n\n" +
+    "Es importante asistir a todas las sesiones.\n\n¡Te esperamos!\nTUMO Barracas"],
   ["ESPERA", "Estás en lista de espera para {actividad}",
     "¡Hola {nombre}!\n\nPor ahora no hay vacantes en {actividad} ({horario}), así que quedaste en lista de espera.\n" +
     "Todavía no tenés una vacante. Si se libera una, te vamos a escribir a este mail.\n\nTUMO Barracas"],
@@ -544,6 +552,7 @@ function doGet(e) {
     if (p.action === "actividades") return json_({ status: "ok", actividades: publicActivities_() });
     if (p.action === "verificar") return json_(publicVerify_(verify_(p.dni, p.actividad)));
     if (p.action === "estado") return json_(publicStatus_(p.dni));
+    if (p.action === "invitacion") return json_(publicInvite_(p.token));
     return json_({ status: "accion_invalida" });
   } catch (err) {
     console.error(err);
@@ -557,6 +566,7 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     if (!authorized_(data.key)) return json_({ status: "no_autorizado" });
     if (data.action === "solicitud") return json_(register_(data));
+    if (data.action === "confirmar") return json_(confirmAttendance_(data.token));
     return json_({ status: "accion_invalida" });
   } catch (err) {
     console.error(err);
@@ -607,7 +617,10 @@ function onSheetEdit(e) {
       }
     }
 
-    setCells_(sol, row, { "Actualizado": new Date() });
+    const changes = { "Actualizado": new Date() };
+    // Recién confirmada por el equipo: falta que la familia toque "Confirmar" en el mail
+    if (after === ESTADO.CONFIRMADA && sol.headers.indexOf(CONFIRM_COL) >= 0 && !isYes_(row[CONFIRM_COL])) changes[CONFIRM_COL] = "NO";
+    setCells_(sol, row, changes);
     log_(row, before, after, "Cambio manual");
     const template = { "Confirmada": "CONFIRMADA", "Lista de espera": "ESPERA", "Cancelada": "CANCELADA", "No elegible": "NO_ELEGIBLE" }[after];
     if (template) sendTemplate_(template, row, act);
@@ -627,6 +640,12 @@ function log_(row, before, after, detail) {
   });
 }
 
+// "Jue 10, … y Jue 17 de diciembre (Vie 18: cierre y recuperatorio)" → "Jue 10, … y Jue 17 de diciembre"
+// Para volver a mandar el día de cierre en los mails: usar act["Días"] directo en sendTemplate_.
+function withoutExtraDay_(dias) {
+  return String(dias || "").replace(/\s*\([^)]*\)/g, "").trim();
+}
+
 function sendTemplate_(key, row, act) {
   const msg = table_(TAB.MSG).rows.find((m) => m["Clave"] === key);
   if (!msg) return;
@@ -641,12 +660,99 @@ function sendTemplate_(key, row, act) {
     nombre: String(row["Nombre 360"] || row["Nombre ingresado"]).split(" ")[0],
     actividad: row["Actividad"],
     grupo: row["Grupo"],
-    dias: act ? act["Días"] : "",
+    // Sin lo que va entre paréntesis ("(Vie 18: cierre y recuperatorio)"), igual que en la web
+    dias: act ? withoutExtraDay_(act["Días"]) : "",
     horario: act ? act["Horario"] : "",
     contacto: cfg["Contacto"] || "TUMO Barracas",
   };
   const subject = (testTo ? "[PRUEBA → " + row["Email"] + "] " : "") + fill_(withoutGroup_(msg["Asunto"]), vars);
-  MailApp.sendEmail({ to: to, subject: subject, body: fill_(withoutGroup_(msg["Cuerpo"]), vars), name: "TUMO Barracas" });
+  const text = fill_(withoutGroup_(msg["Cuerpo"]), vars);
+  const mail = { to: to, subject: subject, body: text, name: "TUMO Barracas" };
+  if (text.indexOf("{boton}") >= 0) {
+    const url = confirmUrl_(row, cfg);
+    mail.body = text.replace(/\{boton\}/g, url ? "Confirmar: " + url : "");
+    mail.htmlBody = textToHtml_(text, url);
+  }
+  MailApp.sendEmail(mail);
+}
+
+// Link del botón "Confirmar": la web (confirmar.html) con el token de la solicitud (no se puede adivinar)
+function confirmUrl_(row, cfg) {
+  const token = String(row["Token"] || "").trim();
+  if (!token) return "";
+  const site = String(cfg["URL del sitio"] || "https://tumoflashlab.vercel.app").trim().replace(/\/+$/, "");
+  return site + "/confirmar.html?t=" + encodeURIComponent(token);
+}
+
+// El texto del mail como HTML (mismo contenido), con {boton} como botón azul
+function textToHtml_(text, url) {
+  const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const button = url
+    ? '<a href="' + esc(url) + '" style="display:inline-block;padding:14px 32px;border-radius:999px;background:#2730e7;' +
+      'color:#ffffff;font-weight:800;font-size:16px;text-decoration:none;">CONFIRMAR</a>'
+    : "";
+  const html = esc(text).split("\n").join("<br>")
+    .replace(/(<br>)?\{boton\}(<br>)?/g, '<div style="margin:18px 0;">' + button + "</div>");
+  return '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#111;">' + html + "</div>";
+}
+
+// Agrega el párrafo del botón a un texto viejo del mail CONFIRMADA (antes del saludo final)
+function withConfirmButton_(cuerpo) {
+  const t = String(cuerpo || "");
+  const ends = ["Es importante asistir", "¡Te esperamos!", "TUMO Barracas"].map((k) => t.indexOf(k)).filter((i) => i >= 0);
+  const at = ends.length ? Math.min.apply(null, ends) : t.length;
+  return t.slice(0, at).replace(/\s*$/, "\n\n") + CONFIRM_TEXT + "\n\n" + t.slice(at).replace(/^\s*/, "");
+}
+
+// ==========================================================
+// Confirmación de asistencia (botón "Confirmar" del mail → confirmar.html → /api/inscripcion)
+// ==========================================================
+
+// Se puede confirmar con la vacante confirmada por el equipo (u ofrecida desde la lista de espera)
+const CONFIRMABLE = [ESTADO.CONFIRMADA, ESTADO.OFRECIDA];
+
+function byToken_(token) {
+  token = String(token || "").trim();
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return null;
+  const sol = table_(TAB.SOL);
+  const row = sol.rows.find((s) => String(s["Token"]).trim() === token);
+  return row ? { sol: sol, row: row } : null;
+}
+
+// Lo que muestra confirmar.html antes de tocar "Confirmar" (sin documento ni mail)
+function publicInvite_(token) {
+  const found = byToken_(token);
+  if (!found) return { status: "no_encontrado" };
+  const row = found.row;
+  const act = table_(TAB.ACT).rows.find((a) => a["ID"] === row["Actividad ID"]);
+  return {
+    status: "ok",
+    nombre: String(row["Nombre 360"] || row["Nombre ingresado"]).split(" ")[0],
+    actividad: row["Actividad"],
+    dias: act ? withoutExtraDay_(act["Días"]) : "",
+    horario: act ? act["Horario"] : "",
+    confirmado: isYes_(row[CONFIRM_COL]),
+    puede: CONFIRMABLE.indexOf(row["Estado"]) >= 0,
+  };
+}
+
+function confirmAttendance_(token) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: "ocupado" };
+  try {
+    const found = byToken_(token);
+    if (!found) return { status: "no_encontrado" };
+    const row = found.row;
+    if (isYes_(row[CONFIRM_COL])) return { status: "ok", ya: true };
+    if (CONFIRMABLE.indexOf(row["Estado"]) < 0) return { status: "no_disponible" };
+    const changes = { "Actualizado": new Date() };
+    changes[CONFIRM_COL] = "SÍ";
+    setCells_(found.sol, row, changes);
+    log_(row, row["Estado"], row["Estado"], "Asistencia confirmada por el interesado (botón del mail)");
+    return { status: "ok", ya: false };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ==========================================================
@@ -698,6 +804,12 @@ function setup() {
         if (c && fixed !== String(m[col] || "")) sh.getRange(m._row, c).setValue(fixed);
       });
     });
+    // El mail CONFIRMADA lleva el botón "Confirmar": si el texto no tiene {boton}, se agrega antes del saludo final
+    const conf = msgs.rows.find((m) => m["Clave"] === "CONFIRMADA");
+    const cuerpoCol = msgs.headers.indexOf("Cuerpo") + 1;
+    if (conf && cuerpoCol && String(conf["Cuerpo"]).indexOf("{boton}") < 0) {
+      sh.getRange(conf._row, cuerpoCol).setValue(withConfirmButton_(conf["Cuerpo"]));
+    }
     forget_(TAB.MSG);
   }
   if (table_(TAB.ACT).rows.length === 0) {

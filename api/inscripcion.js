@@ -4,7 +4,9 @@
 // GET  /api/inscripcion?action=actividades
 // GET  /api/inscripcion?action=verificar&dni=…&actividad=…
 // GET  /api/inscripcion?action=estado&dni=…
+// GET  /api/inscripcion?action=invitacion&token=…   (página confirmar.html, botón del mail)
 // POST /api/inscripcion  { action: "solicitud", dni, nombre, actividad, confirmado: true }
+// POST /api/inscripcion  { action: "confirmar", token }
 //
 // Variables de entorno en Vercel: APPS_SCRIPT_URL (URL /exec del Web App) y APPS_SCRIPT_KEY.
 // La URL y la clave del Apps Script nunca llegan al navegador.
@@ -14,7 +16,7 @@ const { callAppsScript, isConfigured } = require("./_appsScript");
 const { handleCors } = require("./_cors");
 
 // Límite por IP y por minuto (en memoria: es aproximado, alcanza para frenar abusos simples)
-const LIMITS = { actividades: 60, verificar: 30, estado: 20, solicitud: 6 };
+const LIMITS = { actividades: 60, verificar: 30, estado: 20, invitacion: 20, solicitud: 6, confirmar: 10 };
 const hits = new Map();
 
 function rateLimited(ip, action) {
@@ -48,6 +50,8 @@ function send(res, status, data, headers = {}) {
 const clean = (v, max = 80) => String(v || "").slice(0, max);
 // Documento: DNI, pasaporte u otro → sólo letras y números en mayúsculas
 const docId = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+// Token de la solicitud (UUID) que va en el link del mail
+const tokenId = (v) => String(v || "").toLowerCase().replace(/[^0-9a-f-]/g, "").slice(0, 36);
 
 module.exports = async function handler(req, res) {
     if (handleCors(req, res)) return;
@@ -59,11 +63,12 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "GET") {
         const action = url.searchParams.get("action");
-        if (!["actividades", "verificar", "estado"].includes(action)) return send(res, 400, { status: "accion_invalida" });
+        if (!["actividades", "verificar", "estado", "invitacion"].includes(action)) return send(res, 400, { status: "accion_invalida" });
         if (rateLimited(ip, action)) return send(res, 429, { status: "demasiados_intentos" });
 
         const params = { action };
-        if (action !== "actividades") params.dni = docId(url.searchParams.get("dni"));
+        if (action === "invitacion") params.token = tokenId(url.searchParams.get("token"));
+        else if (action !== "actividades") params.dni = docId(url.searchParams.get("dni"));
         if (action === "verificar") params.actividad = clean(url.searchParams.get("actividad"), 40);
         const data = await callAppsScript(params);
         const cache = action === "actividades" && data.status === "ok"
@@ -73,9 +78,14 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-        if (rateLimited(ip, "solicitud")) return send(res, 429, { status: "demasiados_intentos" });
         let body;
         try { body = await readBody(req); } catch { return send(res, 400, { status: "error" }); }
+        if (body.action === "confirmar") {
+            if (rateLimited(ip, "confirmar")) return send(res, 429, { status: "demasiados_intentos" });
+            const data = await callAppsScript(null, { action: "confirmar", token: tokenId(body.token) });
+            return send(res, data.status === "timeout" ? 504 : 200, data, { "Cache-Control": "no-store" });
+        }
+        if (rateLimited(ip, "solicitud")) return send(res, 429, { status: "demasiados_intentos" });
         const data = await callAppsScript(null, {
             action: "solicitud",
             dni: docId(body.dni),

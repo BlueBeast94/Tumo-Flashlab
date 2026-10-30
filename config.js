@@ -21,6 +21,10 @@ const EVENT = {
     place: "TUMO Barracas",
     price: "Gratis",
     contact: "",  // mail o teléfono para casos que no se resuelven en la web (vacío = "acercate a recepción")
+    // WhatsApp para seguir la consulta con una persona (Flashy lo ofrece). Sólo números, con código de país:
+    // en Argentina los celulares llevan 54 + 9 + código de área sin 0 + número (+54 11 5134-2592 → 5491151342592)
+    whatsapp: "5491151342592",
+    whatsappText: "Hola, necesito más información del FlashLab",
     rules: [
         "Cada estudiante puede solicitar vacante en una sola actividad de diciembre.",
         "Para inscribirse hay que elegir la actividad en la cartelera y completar el nombre, el apellido y el DNI del estudiante que va a participar (no los del adulto responsable). No se pide el TUMO ID.",
@@ -50,6 +54,9 @@ const EVENT = {
             "Se consulta con el DNI del estudiante en las preguntas frecuentes de la página o preguntándole a Flashy."],
     ],
 };
+
+// Abre WhatsApp con el mensaje ya escrito
+const whatsappUrl = () => `https://wa.me/${EVENT.whatsapp}?text=${encodeURIComponent(EVENT.whatsappText)}`;
 
 const contactText = () => EVENT.contact ? `escribinos a ${EVENT.contact}` : "acercate a la recepción de TUMO Barracas";
 

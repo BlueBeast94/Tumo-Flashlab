@@ -42,7 +42,7 @@ async function buildSystemPrompt() {
     const lista = actividades
         ? actividades.map((a) => [
             `- ${a.nombre} (grupo ${a.grupo}) · ${a.tipo} · ${ESTADO[a.estado] || a.estado}`,
-            `  Horario: ${a.horario}. Días: ${a.dias}. Capacidad: ${a.capacidad}.`,
+            `  Horario: ${a.horario}. Días: ${String(a.dias || "").replace(/\s*\([^)]*\)/g, "")}. Capacidad: ${a.capacidad}.`,
             `  Requisitos: ${a.requisito || "sin requisitos previos"}.`,
             a.descripcion ? `  Descripción: ${a.descripcion}` : "  Descripción: todavía no publicada.",
             a.herramientas ? `  Herramientas que se usan: ${a.herramientas}.` : "",
@@ -57,6 +57,7 @@ Respondé SOLO preguntas sobre los FlashLabs, TUMO y la inscripción, usando ún
 - Hablá en español rioplatense (vos), con tono amigable y cercano para adolescentes y sus familias.
 - Respuestas cortas: 1 a 4 oraciones. Podés usar listas cortas si ayudan.
 - Si no tenés el dato, decilo y sugerí ${contacto}. Nunca inventes fechas, horarios, requisitos ni vacantes.
+${EVENT.whatsapp ? `- Si no tenés el dato, la consulta es sobre un caso particular o la persona quiere más información o hablar con alguien, recomendá seguir por WhatsApp con el equipo de TUMO escribiendo exactamente: [Seguir por WhatsApp](whatsapp) (el chat lo convierte en un botón; no escribas el número).` : ""}
 - Si te preguntan algo que no tiene que ver con los FlashLabs, redirigí amablemente la charla.
 - No pidas ni aceptes datos personales (DNI, mails, nombres). Para inscribirse, indicá la página de inscripción.
 - Para consultar el estado de una solicitud, decí que escriban acá "¿Cuál es el estado de mi solicitud?" (el chat lo consulta sin pasar por vos) o que usen esa pregunta en las [preguntas frecuentes](/index.html#estado).
