@@ -17,6 +17,7 @@ const TAB = {
   RES: "Resumen",
   MAN: "Estudiantes manuales",
   SYNC: "Sync",
+  COLA: "Mails pendientes",
 };
 
 // Columnas fijas de Estudiantes. La sincronización agrega después las columnas de cursos del 360
@@ -34,6 +35,8 @@ const HEADERS = {
   Historial: ["Fecha", "Usuario", "Solicitud", "DNI", "Antes", "Después", "Detalle"],
   Mensajes: ["Clave", "Asunto", "Cuerpo"],
   Config: ["Clave", "Valor", "Descripción"],
+  // Mails que Google no dejó mandar (límite diario u otro error): retryMails los reintenta solo
+  "Mails pendientes": ["Fecha", "Solicitud", "Para", "Asunto", "Intentos", "Último error", "Enviado", "Mail"],
   Sync: ["Fecha", "Usuario", "Filas origen", "Estudiantes", "Con cursos (360)", "Sin TUMO ID",
     "TUMO ID sin 360", "Duplicados", "Filas ignoradas", "Manuales", "Segundos", "Detalle"],
 };
@@ -485,6 +488,7 @@ function register_(data) {
 
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { status: "ocupado" };
+  let saved = null;
   try {
     // Se repite todo dentro del lock: evita duplicados y que dos personas tomen la última vacante
     const r = verify_(data.dni, data.actividad);
@@ -519,11 +523,15 @@ function register_(data) {
     };
     append_(sol, row);
     log_(row, "", estado, "Solicitud recibida desde la web");
-    sendTemplate_("RECEPCION", row, r.act);
-    return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado], cumple: r.status === "ok" };
+    saved = { row: row, act: r.act, cumple: r.status === "ok" };
   } finally {
     lock.releaseLock();
   }
+  // El mail se manda con el lock ya suelto: mandar tarda 1-2 s y con mucho tráfico todos esperaban en fila.
+  // Si falla, la solicitud igual queda registrada y el mail va a "Mails pendientes".
+  try { sendTemplate_("RECEPCION", saved.row, saved.act); } catch (err) { console.error(err); }
+  const estado = saved.row["Estado"];
+  return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado], cumple: saved.cumple };
 }
 
 function publicStatus_(dni) {
@@ -646,6 +654,15 @@ function withoutExtraDay_(dias) {
   return String(dias || "").replace(/\s*\([^)]*\)/g, "").trim();
 }
 
+// Días con el nombre completo, para los mails: "Jue 10, Vie 11, Mar 15 y Jue 17 de diciembre"
+// → "Jueves 10, viernes 11, martes 15 y jueves 17 de diciembre"
+const DIAS_COMPLETOS = { lun: "lunes", mar: "martes", mie: "miércoles", jue: "jueves", vie: "viernes", sab: "sábado", dom: "domingo" };
+function fullDays_(dias) {
+  const t = String(dias || "").replace(/\b(lun|mar|mi[eé]|jue|vie|s[aá]b|dom)[a-záéíóú]*\.?(?=\s+\d)/gi,
+    (m, d) => DIAS_COMPLETOS[norm_(d)]);
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 function sendTemplate_(key, row, act) {
   const msg = table_(TAB.MSG).rows.find((m) => m["Clave"] === key);
   if (!msg) return;
@@ -661,7 +678,7 @@ function sendTemplate_(key, row, act) {
     actividad: row["Actividad"],
     grupo: row["Grupo"],
     // Sin lo que va entre paréntesis ("(Vie 18: cierre y recuperatorio)"), igual que en la web
-    dias: act ? withoutExtraDay_(act["Días"]) : "",
+    dias: act ? fullDays_(withoutExtraDay_(act["Días"])) : "",
     horario: act ? act["Horario"] : "",
     contacto: cfg["Contacto"] || "TUMO Barracas",
   };
@@ -673,7 +690,78 @@ function sendTemplate_(key, row, act) {
     mail.body = text.replace(/\{boton\}/g, url ? "Confirmar: " + url : "");
     mail.htmlBody = textToHtml_(text, url);
   }
-  MailApp.sendEmail(mail);
+  deliver_(mail, row, key);
+}
+
+// ---------- Envío con cola ----------
+// Google limita los mails por día (cuenta personal: ~100 destinatarios; cuenta de TUMO/Workspace: ~1500).
+// Si no hay cuota o el envío falla, el mail no se pierde: queda en "Mails pendientes" y retryMails
+// lo reintenta cada 10 minutos (y al día siguiente, cuando se renueva la cuota).
+
+const recipients_ = (to) => String(to || "").split(",").filter((m) => m.trim()).length;
+
+function deliver_(mail, row, key) {
+  let error;
+  try {
+    if (MailApp.getRemainingDailyQuota() < recipients_(mail.to)) {
+      error = "Sin cuota de mails por hoy";
+    } else {
+      MailApp.sendEmail(mail);
+      return true;
+    }
+  } catch (err) {
+    error = String(err && err.message || err);
+  }
+  append_(table_(TAB.COLA), {
+    "Fecha": new Date(), "Solicitud": row["ID"], "Para": mail.to, "Asunto": mail.subject,
+    "Intentos": 1, "Último error": error, "Mail": JSON.stringify(mail),
+  });
+  log_(row, row["Estado"], row["Estado"], "Mail " + key + " en cola (" + error + "): se reintenta solo");
+  return false;
+}
+
+// Trigger cada 10 minutos (lo crea setup). También se puede correr a mano desde el menú.
+function retryMails() {
+  resetMemo_();
+  const lock = LockService.getDocumentLock(); // otro lock: no frena las inscripciones de la web
+  if (!lock.tryLock(1000)) return { enviados: 0, pendientes: -1 };
+  try {
+    const cola = table_(TAB.COLA);
+    const pending = cola.rows.filter((m) => !m["Enviado"] && m["Mail"]);
+    let sent = 0;
+    for (let i = 0; i < pending.length; i++) {
+      const m = pending[i];
+      const mail = JSON.parse(m["Mail"]);
+      if (MailApp.getRemainingDailyQuota() < recipients_(mail.to)) break; // mañana sigue
+      try {
+        MailApp.sendEmail(mail);
+        setCells_(cola, m, { "Enviado": new Date() });
+        sent++;
+      } catch (err) {
+        setCells_(cola, m, { "Intentos": (Number(m["Intentos"]) || 0) + 1, "Último error": String(err && err.message || err) });
+      }
+    }
+    return { enviados: sent, pendientes: pending.length - sent };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Menú FlashLabs > Mails: cuota y cola
+function showMailQuota() {
+  resetMemo_();
+  const pendientes = table_(TAB.COLA).rows.filter((m) => !m["Enviado"] && m["Mail"]).length;
+  const text = "Mails que se pueden mandar hoy (destinatarios): " + MailApp.getRemainingDailyQuota() +
+    "\nMails en cola (Mails pendientes): " + pendientes +
+    "\n\nLa cola se reintenta sola cada 10 minutos. Para mandarla ahora: FlashLabs > Reintentar mails pendientes.";
+  try { SpreadsheetApp.getUi().alert(text); } catch (err) { console.log(text); }
+}
+
+function retryMailsNow() {
+  const r = retryMails();
+  const text = r.pendientes < 0 ? "Ya se están reintentando. Probá en un minuto."
+    : "Enviados: " + r.enviados + ". Siguen en cola: " + r.pendientes + (r.pendientes ? " (sin cuota por hoy o con error: ver la pestaña)." : ".");
+  try { SpreadsheetApp.getUi().alert(text); } catch (err) { console.log(text); }
 }
 
 // Link del botón "Confirmar": la web (confirmar.html) con el token de la solicitud (no se puede adivinar)
@@ -764,6 +852,8 @@ function onOpen() {
     .addItem("Sincronizar estudiantes ahora", "syncStudents")
     .addItem("Revisar un documento…", "diagnoseStudent")
     .addItem("Actualizar descripciones y requisitos", "applyCatalog")
+    .addItem("Mails: cuota y cola", "showMailQuota")
+    .addItem("Reintentar mails pendientes", "retryMailsNow")
     .addSeparator()
     .addItem("Configurar / reparar planilla", "setup")
     .addItem("Ver clave de la API", "showSecret")
@@ -837,10 +927,11 @@ function setup() {
   if (!props.getProperty("API_SECRET")) props.setProperty("API_SECRET", Utilities.getUuid().replace(/-/g, ""));
 
   ScriptApp.getProjectTriggers()
-    .filter((t) => ["onSheetEdit", "syncStudents"].indexOf(t.getHandlerFunction()) >= 0)
+    .filter((t) => ["onSheetEdit", "syncStudents", "retryMails"].indexOf(t.getHandlerFunction()) >= 0)
     .forEach((t) => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("onSheetEdit").forSpreadsheet(ss).onEdit().create();
   ScriptApp.newTrigger("syncStudents").timeBased().everyDays(1).atHour(3).create(); // todas las noches
+  ScriptApp.newTrigger("retryMails").timeBased().everyMinutes(10).create(); // mails que quedaron en cola
 
   showSecret();
 }

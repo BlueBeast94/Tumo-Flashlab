@@ -49,6 +49,8 @@ Web (Vercel) ──▶ /api/inscripcion (Vercel) ──▶ Apps Script (Code.gs)
 
 **Botón "Confirmar" (la familia confirma la asistencia):** cuando el equipo pasa una solicitud a *Confirmada*, el mail CONFIRMADA sale con un botón **CONFIRMAR** y la columna *"Confirmado por el interesado"* queda en **NO**. El botón abre `confirmar.html` en la web (con el *Token* de la solicitud); al tocar CONFIRMAR ahí, la columna pasa a **SÍ** y queda en Historial con la fecha. En Mensajes, `{boton}` marca dónde va el botón (setup lo agrega al texto si falta). La dirección de la web está en Config, *"URL del sitio"*.
 
+**Mails con mucho tráfico:** Google limita los mails por día (cuenta personal ≈ 100 destinatarios, cuenta de TUMO/Workspace ≈ 1500; un mail a "mail 1, mail 2" cuenta 2). Si no hay cuota o un envío falla, la solicitud igual se registra y el mail queda en la pestaña **Mails pendientes**; se reintenta solo cada 10 minutos (y al día siguiente, cuando vuelve la cuota). Menú **FlashLabs > Mails: cuota y cola** muestra cuántos se pueden mandar hoy; **Reintentar mails pendientes** los manda en el momento.
+
 ## 3b. Estudiantes reales (sincronización)
 
 La pestaña Estudiantes se arma sola a partir de la planilla de inscripciones de TUMO:
