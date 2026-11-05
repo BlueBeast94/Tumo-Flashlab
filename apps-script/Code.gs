@@ -60,7 +60,10 @@ const OCUPAN = [ESTADO.PENDIENTE, ESTADO.CONFIRMADA, ESTADO.OFRECIDA];
 
 // Se puede pedir vacante aunque no se cumplan los requisitos: queda con menos prioridad.
 // El equipo ordena Solicitudes por Prioridad y después por Fecha.
-const PRIORIDAD = { CUMPLE: "1 · Cumple requisitos", SIN_VERIFICAR: "2 · Sin verificar", NO_CUMPLE: "3 · No cumple requisitos" };
+// La columna Prioridad dice el número y la razón: "1 · Cumple requisitos",
+// "2 · SISTEMA: …" (nos falta información, no depende del estudiante) o "3 · ESTUDIANTE: …" (figura sin aprobar).
+const PRIORIDAD_CUMPLE = "1 · Cumple requisitos";
+const priorityText_ = (req, causa) => (req === "ok" ? PRIORIDAD_CUMPLE : (req === "no" ? "3" : "2") + " · " + causa);
 const priorityOf_ = (s) => Number(String(s["Prioridad"] || "1").charAt(0)) || 1; // filas viejas sin prioridad = 1
 
 // Lo que ve el estudiante para cada estado interno
@@ -308,10 +311,13 @@ function requirementParts_(act, student, headers) {
   return { modo: "any", cursos: cursos };
 }
 
-// Devuelve "ok" | "no" | "unknown". Sin datos del 360 (sin TUMO ID) → "unknown".
+const datosOk_ = (student) => !student["Datos 360"] || student["Datos 360"] === "OK";
+
+// Devuelve "ok" | "no" | "unknown". Sin datos confiables del 360 → "unknown": nunca se culpa al estudiante.
 function requirement_(act, student, headers) {
   const parts = requirementParts_(act, student, headers);
   if (!parts) return "ok";
+  if (!datosOk_(student)) return "unknown";
   const results = parts.cursos.map((c) => c.result);
   if (parts.modo === "any") return results.indexOf("ok") >= 0 ? "ok" : results.indexOf("unknown") >= 0 ? "unknown" : "no";
   return results.indexOf("no") >= 0 ? "no" : results.indexOf("unknown") >= 0 ? "unknown" : "ok";
@@ -323,6 +329,21 @@ function requirementDetail_(act, student, headers) {
   if (!parts) return "sin requisito";
   if (student["Datos 360"] && student["Datos 360"] !== "OK") return "sin datos del 360 (" + student["Datos 360"] + ")";
   return parts.cursos.map((c) => c.col + ": " + (!c.header ? "no existe esa columna" : c.value || "vacío")).join(" · ");
+}
+
+// Para el equipo: de quién depende el resultado. "ESTUDIANTE: …" = sus cursos figuran sin aprobar.
+// "SISTEMA: …" = nos falta información para saberlo.
+function requirementCause_(act, student, headers) {
+  const parts = requirementParts_(act, student, headers);
+  if (!parts) return "Sin requisito";
+  const req = requirement_(act, student, headers);
+  if (req === "ok") return "Cumple";
+  if (req === "no") return "ESTUDIANTE: figura sin aprobar " + parts.cursos.map((c) => c.col).join(" ni ");
+  if (!datosOk_(student)) return "SISTEMA: " + student["Datos 360"];
+  const missing = parts.cursos.filter((c) => !c.value).map((c) => c.col);
+  if (missing.length) return "SISTEMA: no tenemos cargado " + missing.join(" ni ");
+  const doubtful = parts.cursos.filter((c) => c.result === "unknown").map((c) => c.col + ": " + c.value);
+  return "SISTEMA: revisar a mano (" + doubtful.join(" · ") + ")";
 }
 
 // Nombre legible de un curso del 360: "Graphic_Design_I" → "Diseño Gráfico 1"
@@ -465,6 +486,7 @@ function verify_(dni, actividadId) {
   const result = {
     student: student, act: act, lugar: disp.estado === "espera" ? "espera" : "vacante",
     detalle: requirementDetail_(act, student, found.headers),
+    prioridad: priorityText_(requirement_(act, student, found.headers), requirementCause_(act, student, found.headers)),
     requisitos: publicRequirements_(act, student, found.headers),
   };
   const req = requirement_(act, student, found.headers);
@@ -499,8 +521,7 @@ function register_(data) {
 
     const estado = r.status === "sin_verificar" ? ESTADO.VALIDACION
       : r.lugar === "espera" ? ESTADO.ESPERA : ESTADO.PENDIENTE;
-    const prioridad = { ok: PRIORIDAD.CUMPLE, sin_verificar: PRIORIDAD.SIN_VERIFICAR, no_cumple: PRIORIDAD.NO_CUMPLE }[r.status];
-    const validacion = { ok: "Requisitos OK", sin_verificar: "Requisito sin verificar", no_cumple: "No cumple requisitos" }[r.status];
+    const validacion = { ok: "Requisitos OK", sin_verificar: "Faltan datos en el sistema", no_cumple: "No cumple requisitos" }[r.status];
     const sol = table_(TAB.SOL);
     const id = "S-" + Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "yyMMdd") + "-" +
       Utilities.getUuid().slice(0, 6).toUpperCase();
@@ -516,7 +537,7 @@ function register_(data) {
       "Actividad": r.act["Actividad"],
       "Grupo": r.act["Grupo"],
       "Estado": estado,
-      "Prioridad": prioridad,
+      "Prioridad": r.prioridad,
       "Validación": "Identidad OK · " + validacion + " (" + r.detalle + ")",
       "Motivo": r.status === "sin_verificar" ? "Verificar a mano: " + (r.motivo || "requisito")
         : r.status === "no_cumple" ? "Prioridad baja, no cumple: " + (r.motivo || "requisito") : "",
@@ -534,6 +555,56 @@ function register_(data) {
   try { sendTemplate_("RECEPCION", saved.row, saved.act); } catch (err) { console.error(err); }
   const estado = saved.row["Estado"];
   return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado], cumple: saved.cumple, confirmaEquipo: teamMail_(saved.row, config_()) };
+}
+
+// Menú FlashLabs: vuelve a evaluar las solicitudes activas con los datos actuales de Estudiantes.
+// Sólo cambia Prioridad, Validación y Motivo. No cambia el Estado ni manda mails.
+function recalcPriorities() {
+  resetMemo_();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: "ocupado" };
+  try {
+    const sol = table_(TAB.SOL);
+    const est = table_(TAB.EST);
+    const acts = table_(TAB.ACT).rows;
+    const students = {};
+    est.rows.forEach((s) => { students[dni_(s["DNI"])] = s; });
+    const count = { revisadas: 0, cambiadas: 0, a1: 0, a2: 0, a3: 0 };
+    sol.rows.filter((s) => ACTIVOS.indexOf(s["Estado"]) >= 0).forEach((s) => {
+      const act = acts.find((a) => a["ID"] === s["Actividad ID"]);
+      if (!act) return;
+      count.revisadas++;
+      const student = students[dni_(s["DNI"])];
+      const req = student ? requirement_(act, student, est.headers) : "unknown";
+      const causa = student ? requirementCause_(act, student, est.headers) : "SISTEMA: el documento no está en Estudiantes";
+      const prioridad = priorityText_(req, causa);
+      if (s["Prioridad"] === prioridad) return;
+      const detalle = student ? requirementDetail_(act, student, est.headers) : "sin datos";
+      const validacion = { ok: "Requisitos OK", unknown: "Faltan datos en el sistema", no: "No cumple requisitos" }[req];
+      const before = s["Prioridad"];
+      setCells_(sol, s, {
+        "Prioridad": prioridad,
+        "Validación": "Identidad OK · " + validacion + " (" + detalle + ")",
+        "Motivo": req === "unknown" ? "Verificar a mano: " + (act["Requisito"] || "requisito")
+          : req === "no" ? "Prioridad baja, no cumple: " + (act["Requisito"] || "requisito") : "",
+      });
+      count.cambiadas++;
+      count["a" + prioridad.charAt(0)]++;
+      log_(s, s["Estado"], s["Estado"], "Prioridad recalculada: " + (before || "vacía") + " → " + prioridad);
+    });
+    return Object.assign({ status: "ok" }, count);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function recalcPrioritiesNow() {
+  const r = recalcPriorities();
+  const text = r.status !== "ok" ? "El sistema está ocupado. Probá de nuevo en un minuto."
+    : "Solicitudes activas revisadas: " + r.revisadas + "\nCambiaron de prioridad: " + r.cambiadas +
+      "\n→ 1 · Cumple: " + r.a1 + "\n→ 2 · SISTEMA: " + r.a2 + "\n→ 3 · ESTUDIANTE: " + r.a3 +
+      "\n\nEl Estado de las solicitudes no cambió y no se mandaron mails. Cada cambio de prioridad quedó en Historial.";
+  try { SpreadsheetApp.getUi().alert(text); } catch (err) { console.log(text); }
 }
 
 function publicStatus_(dni) {
@@ -865,6 +936,7 @@ function confirmAttendance_(token) {
 function onOpen() {
   SpreadsheetApp.getUi().createMenu("FlashLabs")
     .addItem("Sincronizar estudiantes ahora", "syncStudents")
+    .addItem("Recalcular prioridades", "recalcPrioritiesNow")
     .addItem("Revisar un documento…", "diagnoseStudent")
     .addItem("Actualizar descripciones y requisitos", "applyCatalog")
     .addItem("Mails: cuota y cola", "showMailQuota")
@@ -986,6 +1058,8 @@ function readCombined_(source, tabName) {
       doc: dni_(r[C.doc]), tipo: r[C.tipo], tumo: tumo, nombre: r[C.nom], apellido: r[C.ape],
       mail: r[C.mail], mail2: r[C.mail2] === r[C.mail] ? "" : r[C.mail2],
       p360: COMBINADA_VERIFICADA.indexOf(r[C.motivo]) >= 0 ? r : null,
+      // Sólo con TUMO ID confirmado sus cursos valen para decidir; si no, "Datos 360" dice qué falta
+      datos: r[C.motivo] === "TUMO ID COINCIDE" || r[C.motivo] === "TUMO ID ENCONTRADO" ? DATOS_360.OK : r[C.motivo],
     };
   };
   return {
@@ -1062,7 +1136,7 @@ function syncStudents() {
   const rows = {};
   Object.keys(students).forEach((doc) => {
     const s = students[doc];
-    const datos = !s.tumo ? DATOS_360.SIN_ID : !s.p360 ? DATOS_360.NO_360 : DATOS_360.OK;
+    const datos = s.datos || (!s.tumo ? DATOS_360.SIN_ID : !s.p360 ? DATOS_360.NO_360 : DATOS_360.OK);
     if (!s.tumo) stats.sinTumo++; else if (!s.p360) stats.tumoSin360++; else stats.con360++;
     rows[doc] = [doc, s.tipo, s.tumo, s.nombre, s.apellido, s.mail, s.mail2, s.p360 && statusCol >= 0 ? s.p360[statusCol] : "", datos]
       .concat(courses.map((c) => (s.p360 ? s.p360[c.i] : "")));
