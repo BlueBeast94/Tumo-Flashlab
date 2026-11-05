@@ -302,8 +302,6 @@ $("[data-verify]").addEventListener("click", (e) => {
 
 // ---------- Nombre: sólo se pide (no se compara con el 360) ----------
 
-const nameWords = () => nameInput.value.trim().split(/\s+/).filter(Boolean);
-
 function setNameHint(state, text) {
     const hint = $("[data-hint='nombre']");
     hint.className = `field__hint ${state ? `field__hint--${state}` : ""}`;
@@ -328,10 +326,10 @@ form.addEventListener("submit", async (e) => {
     e.preventDefault();
     formError("");
 
-    if (nameWords().length < 2) {
-        setNameHint("error", "Escribí tu nombre y apellido.");
+    if (!nameInput.value.trim()) {
+        setNameHint("error", "Escribí tu nombre.");
         nameInput.focus();
-        return formError("Revisá tu nombre y apellido.");
+        return formError("Falta tu nombre.");
     }
     if (!act) {
         $("[data-horario]").classList.add("is-invalid");
@@ -390,6 +388,8 @@ function showDone(result) {
         ? " Como todavía no cumplís el requisito, tienen prioridad quienes sí lo cumplen."
         : "";
     $("[data-done-detail]").innerHTML = detail + priority;
+    // Con mail del equipo no llega el mail para confirmar: el equipo lo resuelve de forma individual
+    $(".signup-done__warn").hidden = Boolean(result.confirmaEquipo);
     show("done");
     window.scrollTo({ top: 0, behavior: "smooth" });
 }

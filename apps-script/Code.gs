@@ -98,6 +98,7 @@ const SEED_CONFIG = [
   ["Modo prueba: enviar todos los mails a", "", "Si tiene un mail, TODOS los mails van ahí en lugar de al estudiante. Vaciar para producción."],
   ["Plazo invitación (horas)", 48, "Tiempo para aceptar una vacante ofrecida desde la lista de espera."],
   ["Contacto", "", "Mail o teléfono que se muestra cuando algo no se puede resolver en la web."],
+  ["Mail del equipo: sólo aviso de recepción", "sofia.molaguero@tumo.center", "Estudiantes con este mail: sólo sale el mail de recepción y el equipo los confirma de forma individual. Varios: separados por coma."],
   ["Web: mostrar detalle de requisitos", "SÍ", "SÍ / NO. Muestra en el formulario qué cursos del requisito tiene aprobados el documento ingresado."],
   // Origen de los estudiantes (ver syncStudents)
   ["Origen estudiantes: planilla (ID o link)", "", "Planilla con las pestañas de inscripciones (back) y 360. Sólo hace falta que el dueño de este script pueda abrirla."],
@@ -531,7 +532,7 @@ function register_(data) {
   // Si falla, la solicitud igual queda registrada y el mail va a "Mails pendientes".
   try { sendTemplate_("RECEPCION", saved.row, saved.act); } catch (err) { console.error(err); }
   const estado = saved.row["Estado"];
-  return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado], cumple: saved.cumple };
+  return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado], cumple: saved.cumple, confirmaEquipo: teamMail_(saved.row, config_()) };
 }
 
 function publicStatus_(dni) {
@@ -626,10 +627,12 @@ function onSheetEdit(e) {
     }
 
     const changes = { "Actualizado": new Date() };
-    // Recién confirmada por el equipo: falta que la familia toque "Confirmar" en el mail
-    if (after === ESTADO.CONFIRMADA && sol.headers.indexOf(CONFIRM_COL) >= 0 && !isYes_(row[CONFIRM_COL])) changes[CONFIRM_COL] = "NO";
+    // Recién confirmada por el equipo: falta que la familia toque "Confirmar" en el mail.
+    // Con mail del equipo no hay mail de confirmación: queda en SÍ (Historial aclara que lo confirmó el equipo).
+    const byTeam = after === ESTADO.CONFIRMADA && teamMail_(row, config_());
+    if (after === ESTADO.CONFIRMADA && sol.headers.indexOf(CONFIRM_COL) >= 0 && !isYes_(row[CONFIRM_COL])) changes[CONFIRM_COL] = byTeam ? "SÍ" : "NO";
     setCells_(sol, row, changes);
-    log_(row, before, after, "Cambio manual");
+    log_(row, before, after, byTeam ? "Cambio manual · asistencia confirmada por el equipo" : "Cambio manual");
     const template = { "Confirmada": "CONFIRMADA", "Lista de espera": "ESPERA", "Cancelada": "CANCELADA", "No elegible": "NO_ELEGIBLE" }[after];
     if (template) sendTemplate_(template, row, act);
   }
@@ -663,10 +666,21 @@ function fullDays_(dias) {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+// Estudiantes con un mail del equipo en lugar del suyo: el equipo se ocupa de confirmarlos uno por uno
+function teamMail_(row, cfg) {
+  const list = (v) => String(v || "").toLowerCase().split(",").map((m) => m.trim()).filter(Boolean);
+  const team = list(cfg["Mail del equipo: sólo aviso de recepción"]);
+  return list(row["Email"]).some((m) => team.indexOf(m) >= 0);
+}
+
 function sendTemplate_(key, row, act) {
   const msg = table_(TAB.MSG).rows.find((m) => m["Clave"] === key);
   if (!msg) return;
   const cfg = config_();
+  if (key !== "RECEPCION" && teamMail_(row, cfg)) {
+    log_(row, row["Estado"], row["Estado"], "Mail " + key + " no enviado: mail del equipo, lo gestiona el equipo");
+    return;
+  }
   const testTo = String(cfg["Modo prueba: enviar todos los mails a"] || "").trim();
   const to = testTo || String(row["Email"] || "").trim();
   if (!to) {
