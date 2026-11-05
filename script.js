@@ -50,6 +50,7 @@ const signupUrl = (act) => `inscripcion.html?actividad=${encodeURIComponent(act.
 //   imagen: GIF, foto o video propio (archivo en la carpeta img/). Tiene prioridad sobre "art".
 //           La columna "Imagen" de la planilla, si está completa, le gana a esta.
 //   zoom:   (opcional) agranda la imagen en la tarjeta, si el dibujo queda chico (1.5 = 50% más grande)
+//   quieto: (opcional, para GIF) imagen fija de la tarjeta: el GIF sólo se reproduce con el mouse encima
 const LOOKS = {
     "musica-cine":      { color: "blue",   art: "notes" },
     "tumogotchi":       { color: "purple", art: "pet" },
@@ -58,7 +59,7 @@ const LOOKS = {
     "carreras-iot":     { color: "green",  art: "red" },
     "sonido-codigo":    { color: "teal",   art: "blue" },
     "personajes-ia-3d": { color: "pink",   art: "character" },
-    "tumo-tank":        { color: "red",    art: "dark", imagen: "img/Logomotion.gif", zoom: 1.5 },
+    "tumo-tank":        { color: "red",    art: "dark", imagen: "img/Logomotion.gif", quieto: "img/Logomotion-quieto.png", zoom: 1.5 },
 };
 
 // Una actividad nueva que no está en LOOKS toma un color por orden
@@ -71,15 +72,34 @@ function lookOf(act) {
 const colorOf = (act) => lookOf(act).color;
 const artOf = (act) => ART[lookOf(act).art];
 
-// Encabezado de la tarjeta y del panel: imagen/GIF/video propio, o la animación de código
-function mediaOf(act, lazy = false) {
+// Encabezado de la tarjeta y del panel: imagen/GIF/video propio, o la animación de código.
+// En la tarjeta (card) arranca quieto: se anima con el mouse encima o con el foco del teclado.
+function mediaOf(act, card = false) {
     const src = act.imagen || lookOf(act).imagen;
     if (!src) return artOf(act);
     const url = escapeHtml(src);
     const zoom = !act.imagen && lookOf(act).zoom ? ` style="--zoom:${Number(lookOf(act).zoom)}"` : "";
-    return /\.(mp4|webm)$/i.test(src)
-        ? `<video src="${url}" autoplay muted loop playsinline${zoom}></video>`
-        : `<img src="${url}" alt=""${lazy ? ' loading="lazy"' : ""}${zoom}>`;
+    if (/\.(mp4|webm)$/i.test(src)) {
+        return `<video src="${url}"${card ? "" : " autoplay"} muted loop playsinline${zoom}></video>`;
+    }
+    const still = card && !act.imagen && lookOf(act).quieto;
+    return still
+        ? `<img src="${escapeHtml(still)}" data-gif="${url}" alt="" loading="lazy"${zoom}>`
+        : `<img src="${url}" alt=""${card ? ' loading="lazy"' : ""}${zoom}>`;
+}
+
+// GIF con imagen fija o video de la tarjeta: se reproducen sólo mientras la tarjeta está activa.
+// (Las animaciones de código se pausan desde style.css.)
+function playMedia(card, play) {
+    const video = $("video", card);
+    if (video) {
+        if (play) video.play().catch(() => {});
+        else video.pause();
+    }
+    const gif = $("img[data-gif]", card);
+    if (!gif) return;
+    gif.dataset.still = gif.dataset.still || gif.getAttribute("src");
+    gif.src = play ? gif.dataset.gif : gif.dataset.still;
 }
 
 // Animaciones del encabezado del panel, hasta que cada actividad tenga su imagen
@@ -219,6 +239,10 @@ function renderCards() {
         card.addEventListener("click", (e) => {
             if (!e.target.closest(".card__signup")) openPanel(id);
         });
+        card.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") playMedia(card, true); });
+        card.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") playMedia(card, false); });
+        card.addEventListener("focusin", (e) => { if (e.target.matches(":focus-visible")) playMedia(card, true); });
+        card.addEventListener("focusout", () => playMedia(card, false));
     });
 }
 

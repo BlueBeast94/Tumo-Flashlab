@@ -53,6 +53,8 @@ Web (Vercel) ──▶ /api/inscripcion (Vercel) ──▶ Apps Script (Code.gs)
 
 ## 3b. Estudiantes reales (sincronización)
 
+**Hoy se usa una sola pestaña de origen.** En Config, `Origen: pestaña combinada` tiene el nombre de la pestaña que une back y 360 (`360 y Back combinados-5.11.26`). La sincronización lee sólo esa pestaña. **Verde (OK)** = no hay nada que hacer; **rojo (REVISAR)** = hay que revisarlo a mano; la columna *Motivo* dice por qué. Puede inscribirse todo el que tenga DNI, y los cursos se usan sólo cuando el Motivo es TUMO ID COINCIDE, TUMO ID ENCONTRADO o COINCIDENCIA PARCIAL. Esa pestaña es una foto: corregir un TUMO ID ahí no trae los cursos solo. Si se vacía esa fila de Config, el sistema vuelve a leer `back` y `360` por separado, como se explica abajo.
+
 La pestaña Estudiantes se arma sola a partir de la planilla de inscripciones de TUMO:
 
 ```

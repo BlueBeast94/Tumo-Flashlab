@@ -399,6 +399,17 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 .card.is-closed:hover { transform: none; }
 
 /* Imagen (o animación) arriba, con el nombre encima */
+/* Menos ruido visual: las animaciones de las tarjetas quedan quietas y corren sólo en la tarjeta activa */
+.card__media *, .card__media *::before, .card__media *::after { animation-play-state: paused !important; }
+@media (hover: hover) {
+    .card:hover .card__media *, .card:hover .card__media *::before, .card:hover .card__media *::after { animation-play-state: running !important; }
+}
+.card:has(:focus-visible) .card__media *,
+.card:has(:focus-visible) .card__media *::before,
+.card:has(:focus-visible) .card__media *::after { animation-play-state: running !important; }
+/* Pose de la tarjeta quieta: el código ya escrito y el personaje de frente */
+.card__media .art-code__line { animation-delay: calc(var(--d) - 3.2s); }
+.card__media .art-char__face, .card__media .art-char__badge { animation-delay: -1.5s; }
 .card__media {
     position: relative;
     height: 200px;

@@ -102,6 +102,7 @@ const SEED_CONFIG = [
   ["Web: mostrar detalle de requisitos", "SÍ", "SÍ / NO. Muestra en el formulario qué cursos del requisito tiene aprobados el documento ingresado."],
   // Origen de los estudiantes (ver syncStudents)
   ["Origen estudiantes: planilla (ID o link)", "", "Planilla con las pestañas de inscripciones (back) y 360. Sólo hace falta que el dueño de este script pueda abrirla."],
+  ["Origen: pestaña combinada", "360 y Back combinados-5.11.26", "Pestaña única con estudiantes y cursos. Vaciar para volver a leer back y 360 por separado."],
   ["Origen: pestaña inscripciones", "back", "Pestaña con documento + TUMO ID + nombre + mails."],
   ["Origen: pestaña 360", "360", "Pestaña del 360 (fila 1 = títulos: TumoID, Status, Music_I, …)."],
   ["Origen back: columna documento", "P", "Letra de la columna del documento del estudiante."],
@@ -960,11 +961,47 @@ function setup() {
 
 const DATOS_360 = { OK: "OK", SIN_ID: "Sin TUMO ID en back", NO_360: "TUMO ID no está en el 360" };
 
+// Pestaña única "360 y Back combinados": una fila por estudiante. Estado: OK (verde) o REVISAR (rojo).
+// Puede inscribirse todo el que tenga DNI; las filas sin DNI se ignoran al sincronizar.
+// Los cursos sólo se toman de las filas con un TUMO ID verificado (columna Motivo).
+const COMBINADA_VERIFICADA = ["TUMO ID COINCIDE", "TUMO ID ENCONTRADO", "COINCIDENCIA PARCIAL"];
+
+function readCombined_(source, tabName) {
+  const sheet = source.getSheetByName(tabName);
+  if (!sheet) throw new Error("No encuentro la pestaña \"" + tabName + "\" (revisá el nombre en Config).");
+  const rows = sheet.getDataRange().getDisplayValues();
+  const headers = rows.shift().map((h) => String(h).trim());
+  const col = (name) => {
+    const i = headers.indexOf(name);
+    if (i < 0) throw new Error("A la pestaña \"" + tabName + "\" le falta la columna " + name + ".");
+    return i;
+  };
+  const C = {
+    motivo: col("Motivo"), doc: col("DNI"), tipo: col("Tipo doc"), ape: col("Apellido"), nom: col("Nombre"),
+    mail: col("Correo electrónico"), mail2: col("Correo alternativo"), back: col("TUMO ID back"), id360: col("TUMO ID 360"),
+  };
+  const record = (r) => {
+    const tumo = String(r[C.id360] || r[C.back] || "").replace(/\D/g, "");
+    return {
+      doc: dni_(r[C.doc]), tipo: r[C.tipo], tumo: tumo, nombre: r[C.nom], apellido: r[C.ape],
+      mail: r[C.mail], mail2: r[C.mail2] === r[C.mail] ? "" : r[C.mail2],
+      p360: COMBINADA_VERIFICADA.indexOf(r[C.motivo]) >= 0 ? r : null,
+    };
+  };
+  return {
+    backRows: rows, record: record,
+    courses: headers.map((h, i) => ({ name: h, i: i })).filter((c) => /_(I|II|III|IV)$/.test(c.name)),
+    statusCol: col("Status 360"), letters: { doc: "DNI", tumo: "TUMO ID 360" }, by360: {},
+  };
+}
+
 // Lee la planilla de origen. Se usan valores mostrados (los TUMO ID de 16 dígitos pierden precisión como número).
 function readSource_(cfg) {
   const sourceId = String(cfg["Origen estudiantes: planilla (ID o link)"] || "").replace(/.*\/d\/([^/]+).*/, "$1").trim();
   if (!sourceId) throw new Error("Falta el ID o link de la planilla de origen en Config.");
   const source = SpreadsheetApp.openById(sourceId);
+  const combined = String(cfg["Origen: pestaña combinada"] || "").trim();
+  if (combined) return readCombined_(source, combined);
   const backSheet = source.getSheetByName(String(cfg["Origen: pestaña inscripciones"] || "back").trim());
   const sheet360 = source.getSheetByName(String(cfg["Origen: pestaña 360"] || "360").trim());
   if (!backSheet || !sheet360) throw new Error("No encuentro las pestañas de origen (revisá los nombres en Config).");
