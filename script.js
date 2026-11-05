@@ -244,6 +244,21 @@ function renderCards() {
         card.addEventListener("focusin", (e) => { if (e.target.matches(":focus-visible")) playMedia(card, true); });
         card.addEventListener("focusout", () => playMedia(card, false));
     });
+    watchCenterCard($$(".card", wrap));
+}
+
+// En pantallas táctiles no hay mouse: se anima la tarjeta que pasa por el centro de la pantalla
+let centerWatcher = null;
+function watchCenterCard(cards) {
+    if (centerWatcher) centerWatcher.disconnect();
+    if (!window.IntersectionObserver || !matchMedia("(hover: none)").matches) return;
+    centerWatcher = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            entry.target.classList.toggle("is-centered", entry.isIntersecting);
+            playMedia(entry.target, entry.isIntersecting);
+        });
+    }, { rootMargin: "-50% 0px -50% 0px" }); // una línea en el medio de la pantalla: nunca hay dos tarjetas a la vez
+    cards.forEach((card) => centerWatcher.observe(card));
 }
 
 function renderSkeleton() {

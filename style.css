@@ -404,6 +404,9 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 @media (hover: hover) {
     .card:hover .card__media *, .card:hover .card__media *::before, .card:hover .card__media *::after { animation-play-state: running !important; }
 }
+.card.is-centered .card__media *,
+.card.is-centered .card__media *::before,
+.card.is-centered .card__media *::after,
 .card:has(:focus-visible) .card__media *,
 .card:has(:focus-visible) .card__media *::before,
 .card:has(:focus-visible) .card__media *::after { animation-play-state: running !important; }
