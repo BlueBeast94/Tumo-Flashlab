@@ -43,11 +43,11 @@ Web (Vercel) ──▶ /api/inscripcion (Vercel) ──▶ Apps Script (Code.gs)
 | **Mensajes** | Textos de los mails. Se pueden editar; `{nombre}`, `{actividad}`, `{grupo}`, `{dias}`, `{horario}`, `{contacto}` se reemplazan solos. |
 | **Config** | Abrir/cerrar todo, capacidad por defecto, **modo prueba**, plazo de invitación, contacto. |
 
-**Confirmar vacantes:** en Solicitudes, cambiá `Estado` a **Confirmada**. Si el grupo ya está completo, la planilla lo rechaza y avisa. Al confirmar se manda el mail de confirmación. También mandan mail: Lista de espera, Cancelada y No elegible.
+**Confirmar vacantes:** en Solicitudes, cambiá `Estado` a **Confirmado por el equipo**. Si el grupo ya está completo, la planilla lo rechaza y avisa. Esto manda el mail con el botón CONFIRMAR. También mandan mail: Lista de espera, Cancelada y No elegible. En validación, Pendiente del equipo y Asistencia confirmada no mandan mail.
 
 **Modo prueba:** en Config, *"Modo prueba: enviar todos los mails a"* tiene tu mail. Mientras esté lleno, **todos** los mails te llegan a vos (con el destinatario real en el asunto). Vacialo cuando se lance.
 
-**Botón "Confirmar" (la familia confirma la asistencia):** cuando el equipo pasa una solicitud a *Confirmada*, el mail CONFIRMADA sale con un botón **CONFIRMAR** y la columna *"Confirmado por el interesado"* queda en **NO**. El botón abre `confirmar.html` en la web (con el *Token* de la solicitud); al tocar CONFIRMAR ahí, la columna pasa a **SÍ** y queda en Historial con la fecha. En Mensajes, `{boton}` marca dónde va el botón (setup lo agrega al texto si falta). La dirección de la web está en Config, *"URL del sitio"*.
+**Botón "Confirmar" (la familia confirma la asistencia):** al pasar a *Confirmado por el equipo* sale el mail con **CONFIRMAR**, *"Confirmado por el interesado"* queda en **✗** y empieza a correr el plazo. Cuando la familia confirma en `confirmar.html`, el Estado pasa solo a **Asistencia confirmada** y la columna a **✓**. *Tiempo transcurrido* cuenta los días (se actualiza cada hora) y al llegar al plazo de Config muestra **⚠ No confirmó**: el Estado y la vacante no cambian hasta que el equipo decida. Con el mail de la fila *"Mail del equipo: sólo aviso de recepción"* no sale mail y pasa directo a Asistencia confirmada. En Mensajes, `{boton}` marca dónde va el botón; la dirección de la web está en Config, *"URL del sitio"*.
 
 **Prioridad:** dice el número y la razón. *1 · Cumple requisitos*; *2 · SISTEMA: …* (nos falta información, no depende del estudiante); *3 · ESTUDIANTE: …* (figura sin aprobar el requisito). Las solicitudes guardan el resultado del momento en que entraron: después de cambiar datos, usá **FlashLabs > Sincronizar estudiantes ahora** y luego **FlashLabs > Recalcular prioridades**. El recálculo no cambia el Estado ni manda mails, y deja cada cambio en Historial.
 
@@ -88,9 +88,9 @@ La columna **Datos 360** de Estudiantes también lo resume: `OK`, `Sin TUMO ID e
 ## 4. Reglas que aplica el sistema
 
 - **Identidad:** el documento (DNI, pasaporte u otro; 6 a 12 letras o números) tiene que estar en Estudiantes. El nombre se guarda como lo escribe el estudiante, pero **no se compara**.
-- **Una sola solicitud activa por documento.** Activas: Recibida, En validación, Pendiente de confirmación, Confirmada, Lista de espera, Vacante ofrecida. Si se cancela, puede volver a inscribirse.
+- **Una sola solicitud activa por documento.** Activas: En validación, Pendiente del equipo, Confirmado por el equipo, Asistencia confirmada y Lista de espera. Si se cancela, puede volver a inscribirse.
 - **Estado del 360:** no filtra; cualquier estudiante puede pedir vacante.
-- **Vacantes:** una solicitud nueva queda *Pendiente de confirmación* mientras Pendientes + Confirmadas + Ofrecidas < Capacidad. Si no, entra en *Lista de espera*. Recibir una solicitud **no** la confirma: confirma el equipo.
+- **Vacantes:** una solicitud nueva queda *Pendiente del equipo* mientras las pendientes que cumplen + Confirmado por el equipo + Asistencia confirmada < Capacidad. Si no, entra en *Lista de espera*. Recibir una solicitud **no** la confirma: confirma el equipo.
 - **Requisitos:** en Actividades, `Requisito` es el texto que ve el estudiante y `Columna requisito` dice qué cursos del 360 se miran:
   - `Music_I` → hace falta ese curso.
   - `Programming_II o Music_II` → **alcanza con uno**. Los requisitos no son excluyentes: aunque la regla diga `y`, también alcanza con uno.

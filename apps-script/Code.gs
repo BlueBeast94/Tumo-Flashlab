@@ -31,7 +31,7 @@ const HEADERS = {
   Estudiantes: STUDENT_BASE,
   "Estudiantes manuales": STUDENT_BASE,
   Solicitudes: ["ID", "Fecha", "DNI", "TUMO ID", "Nombre ingresado", "Nombre 360", "Email", "Actividad ID",
-    "Actividad", "Grupo", "Estado", "Prioridad", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas", "Confirmado por el interesado"],
+    "Actividad", "Grupo", "Estado", "Prioridad", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas", "Confirmado por el interesado", "Tiempo transcurrido"],
   Historial: ["Fecha", "Usuario", "Solicitud", "DNI", "Antes", "Después", "Detalle"],
   Mensajes: ["Clave", "Asunto", "Cuerpo"],
   Config: ["Clave", "Valor", "Descripción"],
@@ -42,21 +42,33 @@ const HEADERS = {
 };
 
 const ESTADO = {
-  RECIBIDA: "Recibida",
   VALIDACION: "En validación",
-  PENDIENTE: "Pendiente de confirmación",
-  CONFIRMADA: "Confirmada",
+  PENDIENTE: "Pendiente del equipo",
+  CONFIRMADA: "Confirmado por el equipo", // salió el mail con el botón: falta que responda la familia
+  ASISTENCIA: "Asistencia confirmada", // la familia tocó el botón (o el equipo la confirmó directamente)
   ESPERA: "Lista de espera",
-  OFRECIDA: "Vacante ofrecida",
   CANCELADA: "Cancelada",
   NO_ELEGIBLE: "No elegible",
-  FINALIZADA: "Finalizada",
 };
 const ESTADOS = Object.keys(ESTADO).map((k) => ESTADO[k]);
 // Una solicitud "activa" impide pedir otra actividad
-const ACTIVOS = [ESTADO.RECIBIDA, ESTADO.VALIDACION, ESTADO.PENDIENTE, ESTADO.CONFIRMADA, ESTADO.ESPERA, ESTADO.OFRECIDA];
-// Estas ocupan lugar: cuando suman la capacidad, las nuevas solicitudes van a lista de espera
-const OCUPAN = [ESTADO.PENDIENTE, ESTADO.CONFIRMADA, ESTADO.OFRECIDA];
+const ACTIVOS = [ESTADO.VALIDACION, ESTADO.PENDIENTE, ESTADO.CONFIRMADA, ESTADO.ASISTENCIA, ESTADO.ESPERA];
+// El equipo ya les dio la vacante
+const CON_VACANTE = [ESTADO.CONFIRMADA, ESTADO.ASISTENCIA];
+// Color de cada estado en Solicitudes
+const COLOR_ESTADO = {
+  "En validación": "#fff2cc", "Pendiente del equipo": "#cfe2f3", "Confirmado por el equipo": "#d9d2e9",
+  "Asistencia confirmada": "#c6efce", "Lista de espera": "#f9cb9c", "Cancelada": "#d9d9d9", "No elegible": "#f4b6b6",
+};
+// Confirmación de la familia: columna ✓/✗, tiempo transcurrido y plazo
+const CONFIRM_COL = "Confirmado por el interesado";
+const TIEMPO_COL = "Tiempo transcurrido";
+const VENCE_COL = "Vence invitación";
+const CONFIRMO = "✓";
+const NO_CONFIRMO = "✗";
+const VENCIDO = "⚠ No confirmó";
+const PLAZO_KEY = "Plazo para confirmar asistencia (días)";
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Se puede pedir vacante aunque no se cumplan los requisitos: queda con menos prioridad.
 // El equipo ordena Solicitudes por Prioridad y después por Fecha.
@@ -68,15 +80,13 @@ const priorityOf_ = (s) => Number(String(s["Prioridad"] || "1").charAt(0)) || 1;
 
 // Lo que ve el estudiante para cada estado interno
 const ESTADO_PUBLICO = {
-  "Recibida": "Recibimos tu solicitud",
   "En validación": "Estamos validando tus datos",
-  "Pendiente de confirmación": "Estamos revisando tu vacante",
-  "Confirmada": "¡Tenés tu vacante confirmada!",
+  "Pendiente del equipo": "Estamos revisando tu vacante",
+  "Confirmado por el equipo": "¡Te dimos la vacante! Falta que confirmes tu asistencia desde el mail",
+  "Asistencia confirmada": "¡Tu asistencia está confirmada!",
   "Lista de espera": "Estás en lista de espera",
-  "Vacante ofrecida": "¡Se liberó una vacante para vos! Revisá tu mail",
   "Cancelada": "Tu solicitud fue cancelada",
   "No elegible": "Tu solicitud no cumple los requisitos",
-  "Finalizada": "La actividad finalizó",
 };
 
 // ---------- Datos iniciales (de "Cronograma FlashLabs") ----------
@@ -99,7 +109,7 @@ const SEED_CONFIG = [
   ["Inscripción abierta", "SÍ", "SÍ / NO. Abre o cierra todas las inscripciones a la vez."],
   ["Capacidad por grupo", 20, "Valor por defecto al crear actividades (cada grupo se puede cambiar en Actividades)."],
   ["Modo prueba: enviar todos los mails a", "", "Si tiene un mail, TODOS los mails van ahí en lugar de al estudiante. Vaciar para producción."],
-  ["Plazo invitación (horas)", 48, "Tiempo para aceptar una vacante ofrecida desde la lista de espera."],
+  [PLAZO_KEY, 5, "Días que tiene la familia para tocar CONFIRMAR. Después, Tiempo transcurrido muestra que no confirmó."],
   ["Contacto", "", "Mail o teléfono que se muestra cuando algo no se puede resolver en la web."],
   ["Mail del equipo: sólo aviso de recepción", "sofia.molaguero@tumo.center", "Estudiantes con este mail: sólo sale el mail de recepción y el equipo los confirma de forma individual. Varios: separados por coma."],
   ["Web: mostrar detalle de requisitos", "SÍ", "SÍ / NO. Muestra en el formulario qué cursos del requisito tiene aprobados el documento ingresado."],
@@ -173,7 +183,6 @@ const CATALOGO = {
 // Al tocarlo, la familia confirma en la web y la columna "Confirmado por el interesado" pasa a SÍ.
 const CONFIRM_TEXT = "Para terminar de acceder al FlashLab tenés que confirmar la asistencia con este botón " +
   "(tenés 5 días; si no, se da de baja la inscripción):\n{boton}";
-const CONFIRM_COL = "Confirmado por el interesado";
 
 const SEED_MENSAJES = [
   ["RECEPCION", "Recibimos tu solicitud para {actividad}",
@@ -410,9 +419,9 @@ function availability_(act, solicitudes, cfg) {
   const mine = solicitudes.filter((s) => s["Actividad ID"] === act["ID"]);
   const count = (estados) => mine.filter((s) => estados.indexOf(s["Estado"]) >= 0).length;
   const capacidad = Number(act["Capacidad"]) || 0;
-  // Ocupan lugar las confirmadas/ofrecidas y las pendientes que cumplen requisitos:
+  // Ocupan lugar las que el equipo confirmó y las pendientes que cumplen requisitos:
   // una solicitud que no los cumple nunca manda a lista de espera a una que sí.
-  const ocupadas = mine.filter((s) => s["Estado"] === ESTADO.CONFIRMADA || s["Estado"] === ESTADO.OFRECIDA ||
+  const ocupadas = mine.filter((s) => CON_VACANTE.indexOf(s["Estado"]) >= 0 ||
     (s["Estado"] === ESTADO.PENDIENTE && priorityOf_(s) === 1)).length;
   const inscripcion = norm_(act["Inscripción"]);
 
@@ -423,7 +432,7 @@ function availability_(act, solicitudes, cfg) {
   return {
     estado: estado,
     libres: Math.max(0, capacidad - ocupadas),
-    confirmadas: count([ESTADO.CONFIRMADA]),
+    confirmadas: count(CON_VACANTE),
     enEspera: count([ESTADO.ESPERA]),
   };
 }
@@ -686,9 +695,9 @@ function onSheetEdit(e) {
     }
 
     const act = acts.find((a) => a["ID"] === row["Actividad ID"]);
-    if (after === ESTADO.CONFIRMADA && act) {
+    if (CON_VACANTE.indexOf(after) >= 0 && act) {
       const confirmadas = sol.rows.filter((s) => s._row !== r && s["Actividad ID"] === act["ID"] &&
-        s["Estado"] === ESTADO.CONFIRMADA).length;
+        CON_VACANTE.indexOf(s["Estado"]) >= 0).length;
       if (confirmadas >= (Number(act["Capacidad"]) || 0)) {
         const back = before && before !== "?" ? before : ESTADO.PENDIENTE;
         setCells_(sol, row, { "Estado": back });
@@ -699,13 +708,23 @@ function onSheetEdit(e) {
     }
 
     const changes = { "Actualizado": new Date() };
-    // Recién confirmada por el equipo: falta que la familia toque "Confirmar" en el mail.
-    // Con mail del equipo no hay mail de confirmación: queda en SÍ (Historial aclara que lo confirmó el equipo).
+    let detalle = "Cambio manual";
+    // Con mail del equipo no sale el mail de confirmación: la asistencia queda confirmada por el equipo
     const byTeam = after === ESTADO.CONFIRMADA && teamMail_(row, config_());
-    if (after === ESTADO.CONFIRMADA && sol.headers.indexOf(CONFIRM_COL) >= 0 && !isYes_(row[CONFIRM_COL])) changes[CONFIRM_COL] = byTeam ? "SÍ" : "NO";
+    if (byTeam || after === ESTADO.ASISTENCIA) {
+      changes["Estado"] = ESTADO.ASISTENCIA;
+      changes[CONFIRM_COL] = CONFIRMO;
+      changes[TIEMPO_COL] = "Confirmó el equipo";
+      detalle = "Cambio manual · asistencia confirmada por el equipo";
+    } else if (after === ESTADO.CONFIRMADA) {
+      // Sale el mail con el botón y empieza a correr el plazo
+      changes[CONFIRM_COL] = NO_CONFIRMO;
+      changes[VENCE_COL] = new Date(Date.now() + plazoDias_(config_()) * DAY_MS);
+      changes[TIEMPO_COL] = elapsedText_(0, plazoDias_(config_()));
+    }
     setCells_(sol, row, changes);
-    log_(row, before, after, byTeam ? "Cambio manual · asistencia confirmada por el equipo" : "Cambio manual");
-    const template = { "Confirmada": "CONFIRMADA", "Lista de espera": "ESPERA", "Cancelada": "CANCELADA", "No elegible": "NO_ELEGIBLE" }[after];
+    log_(row, before, changes["Estado"] || after, detalle);
+    const template = { [ESTADO.CONFIRMADA]: "CONFIRMADA", [ESTADO.ESPERA]: "ESPERA", [ESTADO.CANCELADA]: "CANCELADA", [ESTADO.NO_ELEGIBLE]: "NO_ELEGIBLE" }[after];
     if (template) sendTemplate_(template, row, act);
   }
 }
@@ -882,8 +901,41 @@ function withConfirmButton_(cuerpo) {
 // Confirmación de asistencia (botón "Confirmar" del mail → confirmar.html → /api/inscripcion)
 // ==========================================================
 
-// Se puede confirmar con la vacante confirmada por el equipo (u ofrecida desde la lista de espera)
-const CONFIRMABLE = [ESTADO.CONFIRMADA, ESTADO.OFRECIDA];
+const plazoDias_ = (cfg) => Number(cfg[PLAZO_KEY]) || 5;
+
+// Días desde que el equipo confirmó. "Vence invitación" guarda la fecha límite.
+function elapsedDays_(row, plazo) {
+  const vence = new Date(row[VENCE_COL]).getTime();
+  return isNaN(vence) ? null : Math.max(0, Math.floor((Date.now() - vence) / DAY_MS + plazo));
+}
+
+function elapsedText_(dias, plazo) {
+  if (dias >= plazo) return VENCIDO + " (" + dias + " días)";
+  return dias === 0 ? "Hoy" : dias === 1 ? "1 día" : dias + " días";
+}
+
+// Trigger cada hora (lo crea setup): cuenta los días de quienes todavía no confirmaron.
+// Al vencer el plazo sólo lo muestra: la vacante y el Estado no cambian hasta que el equipo decida.
+function updateDeadlines() {
+  resetMemo_();
+  const sol = table_(TAB.SOL);
+  const plazo = plazoDias_(config_());
+  const count = { revisadas: 0, vencidas: 0 };
+  sol.rows.filter((s) => s["Estado"] === ESTADO.CONFIRMADA && s[VENCE_COL]).forEach((s) => {
+    const dias = elapsedDays_(s, plazo);
+    if (dias === null) return;
+    count.revisadas++;
+    if (dias >= plazo) count.vencidas++;
+    const text = elapsedText_(dias, plazo);
+    if (text === s[TIEMPO_COL]) return;
+    const justExpired = dias >= plazo && String(s[TIEMPO_COL]).indexOf(VENCIDO) !== 0;
+    const changes = {};
+    changes[TIEMPO_COL] = text;
+    setCells_(sol, s, changes);
+    if (justExpired) log_(s, s["Estado"], s["Estado"], "Plazo vencido: la familia no confirmó en " + plazo + " días");
+  });
+  return count;
+}
 
 function byToken_(token) {
   token = String(token || "").trim();
@@ -905,8 +957,8 @@ function publicInvite_(token) {
     actividad: row["Actividad"],
     dias: act ? withoutExtraDay_(act["Días"]) : "",
     horario: act ? act["Horario"] : "",
-    confirmado: isYes_(row[CONFIRM_COL]),
-    puede: CONFIRMABLE.indexOf(row["Estado"]) >= 0,
+    confirmado: row["Estado"] === ESTADO.ASISTENCIA,
+    puede: row["Estado"] === ESTADO.CONFIRMADA,
   };
 }
 
@@ -917,12 +969,15 @@ function confirmAttendance_(token) {
     const found = byToken_(token);
     if (!found) return { status: "no_encontrado" };
     const row = found.row;
-    if (isYes_(row[CONFIRM_COL])) return { status: "ok", ya: true };
-    if (CONFIRMABLE.indexOf(row["Estado"]) < 0) return { status: "no_disponible" };
-    const changes = { "Actualizado": new Date() };
-    changes[CONFIRM_COL] = "SÍ";
+    if (row["Estado"] === ESTADO.ASISTENCIA) return { status: "ok", ya: true };
+    if (row["Estado"] !== ESTADO.CONFIRMADA) return { status: "no_disponible" };
+    const dias = elapsedDays_(row, plazoDias_(config_()));
+    const changes = { "Estado": ESTADO.ASISTENCIA, "Actualizado": new Date() };
+    changes[CONFIRM_COL] = CONFIRMO;
+    changes[TIEMPO_COL] = dias === null ? "Confirmó" : dias === 0 ? "Confirmó el mismo día"
+      : "Confirmó a " + (dias === 1 ? "1 día" : "los " + dias + " días");
     setCells_(found.sol, row, changes);
-    log_(row, row["Estado"], row["Estado"], "Asistencia confirmada por el interesado (botón del mail)");
+    log_(row, ESTADO.CONFIRMADA, ESTADO.ASISTENCIA, "Asistencia confirmada por el interesado (botón del mail)");
     return { status: "ok", ya: false };
   } finally {
     lock.releaseLock();
@@ -963,6 +1018,9 @@ function setup() {
     // Planillas ya instaladas: agrega las claves nuevas sin tocar las existentes
     const existing = table_(TAB.CFG).rows.map((r) => String(r["Clave"]).trim());
     const sh = ss.getSheetByName(TAB.CFG);
+    // El plazo viejo (en horas) no se usaba: esa fila pasa a ser el plazo de confirmación
+    const viejo = table_(TAB.CFG).rows.find((r) => String(r["Clave"]).trim() === "Plazo invitación (horas)");
+    if (viejo) sh.deleteRow(viejo._row);
     SEED_CONFIG.filter((r) => existing.indexOf(r[0]) < 0).forEach((r) => sh.appendRow(r));
     forget_(TAB.CFG);
   }
@@ -1008,17 +1066,22 @@ function setup() {
   Object.keys(TAB).forEach((k) => forget_(TAB[k]));
 
   formatTabs_();
+  // Después de formatTabs_: la lista de Estado ya tiene los estados nuevos
+  SpreadsheetApp.flush();
+  migrateStates_();
   buildSummary_();
 
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty("API_SECRET")) props.setProperty("API_SECRET", Utilities.getUuid().replace(/-/g, ""));
 
   ScriptApp.getProjectTriggers()
-    .filter((t) => ["onSheetEdit", "syncStudents", "retryMails"].indexOf(t.getHandlerFunction()) >= 0)
+    .filter((t) => ["onSheetEdit", "syncStudents", "retryMails", "updateDeadlines"].indexOf(t.getHandlerFunction()) >= 0)
     .forEach((t) => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("onSheetEdit").forSpreadsheet(ss).onEdit().create();
   ScriptApp.newTrigger("syncStudents").timeBased().everyDays(1).atHour(3).create(); // todas las noches
   ScriptApp.newTrigger("retryMails").timeBased().everyMinutes(10).create(); // mails que quedaron en cola
+  ScriptApp.newTrigger("updateDeadlines").timeBased().everyHours(1).create(); // días transcurridos para confirmar
+  updateDeadlines();
 
   showSecret();
 }
@@ -1292,11 +1355,53 @@ function ensureTab_(name, headers) {
   return sh;
 }
 
+// Pasa las solicitudes de los estados viejos a los nuevos. No manda mails y se puede correr más de una vez.
+function migrateStates_() {
+  const sol = table_(TAB.SOL);
+  const cfg = config_();
+  const plazo = plazoDias_(cfg);
+  const simple = { "Pendiente de confirmación": ESTADO.PENDIENTE, "Recibida": ESTADO.PENDIENTE };
+  sol.rows.forEach((s) => {
+    const old = s["Estado"];
+    const changes = {};
+    const confirmed = isYes_(s[CONFIRM_COL]) || s[CONFIRM_COL] === CONFIRMO; // ✓: si una migración quedó a medias
+    if (old === "Confirmada" || old === "Vacante ofrecida") {
+      if (confirmed || teamMail_(s, cfg)) {
+        changes["Estado"] = ESTADO.ASISTENCIA;
+        changes[CONFIRM_COL] = CONFIRMO;
+        changes[TIEMPO_COL] = teamMail_(s, cfg) ? "Confirmó el equipo" : "Confirmó";
+      } else {
+        const start = new Date(s["Actualizado"]).getTime();
+        changes["Estado"] = ESTADO.CONFIRMADA;
+        changes[CONFIRM_COL] = NO_CONFIRMO;
+        changes[VENCE_COL] = new Date((isNaN(start) ? Date.now() : start) + plazo * DAY_MS);
+      }
+    } else if (simple[old]) {
+      changes["Estado"] = simple[old];
+    }
+    if (isYes_(s[CONFIRM_COL]) && !changes[CONFIRM_COL]) changes[CONFIRM_COL] = CONFIRMO;
+    else if (norm_(s[CONFIRM_COL]) === "no" && !changes[CONFIRM_COL]) changes[CONFIRM_COL] = NO_CONFIRMO;
+    if (!Object.keys(changes).length) return;
+    setCells_(sol, s, changes);
+    if (changes["Estado"]) log_(s, old, changes["Estado"], "Estado actualizado al flujo nuevo (sin mail)");
+  });
+}
+
 function formatTabs_() {
   const sol = table_(TAB.SOL);
   const estadoCol = sol.headers.indexOf("Estado") + 1;
   sol.sh.getRange(2, estadoCol, sol.sh.getMaxRows() - 1, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(ESTADOS, true).setAllowInvalid(false).build());
+  // Colores: los de estas tres columnas se reemplazan; otras reglas del equipo se conservan
+  const column = (h) => sol.sh.getRange(2, sol.headers.indexOf(h) + 1, sol.sh.getMaxRows() - 1, 1);
+  const ours = ["Estado", CONFIRM_COL, TIEMPO_COL].map((h) => sol.headers.indexOf(h) + 1);
+  const rule = () => SpreadsheetApp.newConditionalFormatRule();
+  const rules = Object.keys(COLOR_ESTADO).map((e) => rule().whenTextEqualTo(e).setBackground(COLOR_ESTADO[e]).setRanges([column("Estado")]).build());
+  rules.push(rule().whenTextEqualTo(CONFIRMO).setBackground("#c6efce").setRanges([column(CONFIRM_COL)]).build());
+  rules.push(rule().whenTextEqualTo(NO_CONFIRMO).setBackground("#f4b6b6").setRanges([column(CONFIRM_COL)]).build());
+  rules.push(rule().whenTextStartsWith(VENCIDO).setBackground("#e06666").setRanges([column(TIEMPO_COL)]).build());
+  const kept = sol.sh.getConditionalFormatRules().filter((r) => !r.getRanges().some((g) => ours.indexOf(g.getColumn()) >= 0));
+  sol.sh.setConditionalFormatRules(kept.concat(rules));
   ["DNI"].forEach((h) => {
     [TAB.SOL, TAB.EST].forEach((tab) => {
       const t = table_(tab);
@@ -1341,7 +1446,7 @@ function buildSummary_() {
       "=IF(" + id + "=\"\",\"\"," + ref("Capacidad") + ")",
       "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.VALIDACION) + ")",
       "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.PENDIENTE) + ")",
-      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.CONFIRMADA) + ")",
+      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.CONFIRMADA) + "+" + countIf(id, ESTADO.ASISTENCIA) + ")",
       "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.ESPERA) + ")",
       "=IF(" + id + "=\"\",\"\",E" + r + "-H" + r + ")",
     ]);

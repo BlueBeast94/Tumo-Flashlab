@@ -348,7 +348,7 @@ function initStatus() {
         const r = await apiCall({ action: "estado", dni });
         if (r.status === "ok") {
             out.textContent = r.mensaje;
-            out.classList.add(r.estado === "Confirmada" ? "is-ok" : "is-warn");
+            out.classList.add(["Confirmado por el equipo", "Asistencia confirmada"].includes(r.estado) ? "is-ok" : "is-warn");
         } else if (r.status === "no_encontrado") {
             out.textContent = "No encontramos solicitudes con ese documento.";
             out.classList.add("is-warn");
