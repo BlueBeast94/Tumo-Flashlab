@@ -154,7 +154,7 @@
 
     async function statusReply(doc) {
         const r = await apiCall({ action: "estado", dni: doc });
-        if (r.status === "ok") return `Encontré tu solicitud: **${r.mensaje}**.`;
+        if (r.status === "ok") return r.detalle ? statusLines(r).join("\n") : `Encontré tu solicitud: **${r.mensaje}**.`;
         if (r.status === "no_encontrado") {
             return "No encontré solicitudes con ese documento. Revisá que esté bien escrito (sin puntos). " +
                 "Si todavía no te anotaste, elegí tu actividad en la [cartelera](/index.html#actividades).";

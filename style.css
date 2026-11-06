@@ -1417,7 +1417,7 @@ html[data-theme="red"] .confirm-invite { color: var(--ink); }
     margin-top: 1.2rem;
 }
 .status__form input { flex: 1 1 240px; width: auto; border-radius: var(--radius); }
-.status__result { font-weight: 700; min-height: 1.5em; }
+.status__result { font-weight: 700; min-height: 1.5em; white-space: pre-line; }
 .status__result.is-ok    { color: var(--blue); }
 .status__result.is-warn  { color: var(--red); }
 

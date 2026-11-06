@@ -125,6 +125,19 @@ function requisitoHtml(act) {
         (cursos.length > 1 ? '<p class="req-list__hint">Alcanza con uno</p>' : "");
 }
 
+// Respuesta de "¿Cuál es el estado de mi solicitud?" en la web y en Flashy, línea por línea
+function statusLines(r) {
+    const d = r.detalle;
+    if (!d) return [r.mensaje];
+    const cuando = [d.dias, d.horario && `de ${d.horario}`].filter(Boolean).join(", ");
+    return [
+        `¡Hola ${d.nombre}!`,
+        `Tu asistencia al FlashLab ${d.actividad} ha sido confirmada.`,
+        ...(cuando ? [`Recordá que tus horarios son: ${cuando}.`] : []),
+        "¡Te esperamos! ¡No faltes!",
+    ];
+}
+
 // "9:00 a 11:00" → "9:00 – 11:00"
 const timeText = (horario) => String(horario || "").replace(/\s+a\s+/i, " – ");
 

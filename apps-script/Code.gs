@@ -180,16 +180,15 @@ const CATALOGO = {
 };
 
 // Botón "Confirmar" del mail CONFIRMADA: {boton} se cambia por el botón (o por el link, en la versión sin formato).
-// Al tocarlo, la familia confirma en la web y la columna "Confirmado por el interesado" pasa a SÍ.
-const CONFIRM_TEXT = "Para terminar de acceder al FlashLab tenés que confirmar la asistencia con este botón " +
-  "(tenés 5 días; si no, se da de baja la inscripción):\n{boton}";
+// Al tocarlo, la familia confirma en la web y la columna "Confirmado por el interesado" pasa a ✓.
+const CONFIRM_TEXT = "Para quedarte con tu lugar, tocá el botón dentro de los próximos 5 días. Si no, se lo damos a otro estudiante:\n{boton}";
 
 const SEED_MENSAJES = [
   ["RECEPCION", "Recibimos tu solicitud para {actividad}",
     "¡Hola {nombre}!\n\nRecibimos tu solicitud para {actividad}.\nDías: {dias}\nHorario: {horario}\n\n" +
     "Importante: tu vacante todavía NO está confirmada. Pronto nos vamos a contactar con vos.\n\n¡Gracias!\nTUMO Barracas"],
-  ["CONFIRMADA", "¡Tu vacante en {actividad} está confirmada!",
-    "¡Hola {nombre}!\n\nTu vacante en {actividad} está confirmada.\n\n" +
+  ["CONFIRMADA", "Te reservamos un lugar en {actividad}",
+    "¡Hola {nombre}!\n\nTe reservamos un lugar en {actividad}.\n\n" +
     "Días: {dias}\nHorario: {horario}\nLugar: TUMO Barracas\n\n" + CONFIRM_TEXT + "\n\n" +
     "Es importante asistir a todas las sesiones.\n\n¡Te esperamos!\nTUMO Barracas"],
   ["ESPERA", "Estás en lista de espera para {actividad}",
@@ -622,7 +621,18 @@ function publicStatus_(dni) {
   const active = mine.filter((s) => ACTIVOS.indexOf(s["Estado"]) >= 0).pop();
   const last = active || mine.pop();
   if (!last) return { status: "no_encontrado" };
-  return { status: "ok", estado: last["Estado"], mensaje: ESTADO_PUBLICO[last["Estado"]] || last["Estado"] };
+  const out = { status: "ok", estado: last["Estado"], mensaje: ESTADO_PUBLICO[last["Estado"]] || last["Estado"] };
+  // Sólo con la asistencia confirmada, y sólo el primer nombre: cualquiera que tenga el documento ve esta respuesta
+  if (last["Estado"] === ESTADO.ASISTENCIA) {
+    const act = table_(TAB.ACT).rows.find((a) => a["ID"] === last["Actividad ID"]);
+    out.detalle = {
+      nombre: String(last["Nombre 360"] || last["Nombre ingresado"]).split(" ")[0],
+      actividad: last["Actividad"],
+      dias: act ? fullDays_(withoutExtraDay_(act["Días"])) : "",
+      horario: act ? act["Horario"] : "",
+    };
+  }
+  return out;
 }
 
 // ==========================================================
