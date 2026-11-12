@@ -90,7 +90,7 @@ La columna **Datos 360** de Estudiantes también lo resume: `OK`, `Sin TUMO ID e
 - **Identidad:** el documento (DNI, pasaporte u otro; 6 a 12 letras o números) tiene que estar en Estudiantes. El nombre se guarda como lo escribe el estudiante, pero **no se compara**.
 - **Una sola solicitud activa por documento.** Activas: En validación, Pendiente del equipo, Confirmado por el equipo, Asistencia confirmada y Lista de espera. Si se cancela, puede volver a inscribirse.
 - **Estado del 360:** no filtra; cualquier estudiante puede pedir vacante.
-- **Vacantes:** una solicitud nueva queda *Pendiente del equipo* mientras las pendientes que cumplen + Confirmado por el equipo + Asistencia confirmada < Capacidad. Si no, entra en *Lista de espera*. Recibir una solicitud **no** la confirma: confirma el equipo.
+- **Vacantes:** sólo ocupa lugar **Asistencia confirmada**. Mientras no haya tantas como la Capacidad, las solicitudes nuevas quedan *Pendiente del equipo* (o *En validación*); con el cupo lleno de Asistencia confirmada, entran en *Lista de espera*. El equipo no puede pasar a *Confirmado por el equipo* más solicitudes que la Capacidad (contando también las de Asistencia confirmada).
 - **Requisitos:** en Actividades, `Requisito` es el texto que ve el estudiante y `Columna requisito` dice qué cursos del 360 se miran:
   - `Music_I` → hace falta ese curso.
   - `Programming_II o Music_II` → **alcanza con uno**. Los requisitos no son excluyentes: aunque la regla diga `y`, también alcanza con uno.

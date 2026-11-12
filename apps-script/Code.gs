@@ -418,10 +418,10 @@ function availability_(act, solicitudes, cfg) {
   const mine = solicitudes.filter((s) => s["Actividad ID"] === act["ID"]);
   const count = (estados) => mine.filter((s) => estados.indexOf(s["Estado"]) >= 0).length;
   const capacidad = Number(act["Capacidad"]) || 0;
-  // Ocupan lugar las que el equipo confirmó y las pendientes que cumplen requisitos:
-  // una solicitud que no los cumple nunca manda a lista de espera a una que sí.
-  const ocupadas = mine.filter((s) => CON_VACANTE.indexOf(s["Estado"]) >= 0 ||
-    (s["Estado"] === ESTADO.PENDIENTE && priorityOf_(s) === 1)).length;
+  // Sólo ocupa lugar quien tiene la asistencia confirmada (por la familia, o por el equipo con el mail de Sofía).
+  // Mientras tanto se puede seguir pidiendo vacante: el grupo pasa a lista de espera recién con el cupo
+  // lleno de Asistencia confirmada. (El equipo igual no puede confirmar más que la capacidad: ver onSheetEdit.)
+  const ocupadas = count([ESTADO.ASISTENCIA]);
   const inscripcion = norm_(act["Inscripción"]);
 
   let estado = "abierta";
@@ -1473,7 +1473,7 @@ function buildSummary_() {
   const countIf = (cell, estado) => "COUNTIFS(" + solId + "," + cell + "," + solEstado + ",\"" + estado + "\")";
 
   sh.getRange(1, 1, 1, 10).setValues([["ID", "Actividad", "Grupo", "Habilitado", "Capacidad",
-    "En validación", "Pendientes", "Confirmadas", "Lista de espera", "Libres"]]);
+    "En validación", "Pendientes (equipo o familia)", "Asistencia confirmada", "Lista de espera", "Libres"]]);
   const rows = Math.max(act.rows.length, 1) + 20; // margen para actividades nuevas
   const formulas = [];
   for (let i = 0; i < rows; i++) {
@@ -1487,8 +1487,8 @@ function buildSummary_() {
       "=IF(" + id + "=\"\",\"\"," + ref("Habilitado") + ")",
       "=IF(" + id + "=\"\",\"\"," + ref("Capacidad") + ")",
       "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.VALIDACION) + ")",
-      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.PENDIENTE) + ")",
-      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.CONFIRMADA) + "+" + countIf(id, ESTADO.ASISTENCIA) + ")",
+      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.PENDIENTE) + "+" + countIf(id, ESTADO.CONFIRMADA) + ")",
+      "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.ASISTENCIA) + ")",
       "=IF(" + id + "=\"\",\"\"," + countIf(id, ESTADO.ESPERA) + ")",
       "=IF(" + id + "=\"\",\"\",E" + r + "-H" + r + ")",
     ]);
