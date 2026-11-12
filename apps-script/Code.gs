@@ -31,7 +31,7 @@ const HEADERS = {
   Estudiantes: STUDENT_BASE,
   "Estudiantes manuales": STUDENT_BASE,
   Solicitudes: ["ID", "Fecha", "DNI", "TUMO ID", "Nombre ingresado", "Nombre 360", "Email", "Actividad ID",
-    "Actividad", "Grupo", "Estado", "Prioridad", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas", "Confirmado por el interesado", "Tiempo transcurrido"],
+    "Actividad", "Grupo", "Estado", "Prioridad", "Validación", "Motivo", "Vence invitación", "Token", "Actualizado", "Notas", "Confirmado por el interesado", "Tiempo transcurrido", "Estado del mail"],
   Historial: ["Fecha", "Usuario", "Solicitud", "DNI", "Antes", "Después", "Detalle"],
   Mensajes: ["Clave", "Asunto", "Cuerpo"],
   Config: ["Clave", "Valor", "Descripción"],
@@ -553,6 +553,7 @@ function register_(data) {
       "Actualizado": new Date(),
     };
     append_(sol, row);
+    row._row = sol.sh.getLastRow(); // con el lock tomado, es la fila recién agregada (para "Estado del mail")
     log_(row, "", estado, "Solicitud recibida desde la web");
     saved = { row: row, act: r.act, cumple: r.status === "ok" };
   } finally {
@@ -774,18 +775,39 @@ function teamMail_(row, cfg) {
   return list(row["Email"]).some((m) => team.indexOf(m) >= 0);
 }
 
+// ---------- Columna "Estado del mail" de Solicitudes ----------
+// Dice qué pasó con el último mail automático de cada solicitud: ✓ enviado, ⏳ en cola, ✗ no salió, — no corresponde.
+// "Enviado" = Google lo aceptó para mandar. Si después rebota, el aviso de rebote llega a la casilla que envía.
+const MAIL_COL = "Estado del mail";
+const MAIL_LABEL = { RECEPCION: "Recepción", CONFIRMADA: "Confirmación", ESPERA: "Lista de espera", CANCELADA: "Cancelación", NO_ELEGIBLE: "No elegible" };
+const nowText_ = () => Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "dd/MM HH:mm");
+
+function setMailStatus_(row, text) {
+  const sol = table_(TAB.SOL);
+  if (!row || !row._row || sol.headers.indexOf(MAIL_COL) < 0) return;
+  const changes = {};
+  changes[MAIL_COL] = text;
+  try { setCells_(sol, row, changes); } catch (err) { console.error(err); }
+}
+
 function sendTemplate_(key, row, act) {
+  const label = MAIL_LABEL[key] || key;
   const msg = table_(TAB.MSG).rows.find((m) => m["Clave"] === key);
-  if (!msg) return;
+  if (!msg) {
+    setMailStatus_(row, "✗ " + label + ": falta su texto en Mensajes");
+    return;
+  }
   const cfg = config_();
   if (key !== "RECEPCION" && teamMail_(row, cfg)) {
     log_(row, row["Estado"], row["Estado"], "Mail " + key + " no enviado: mail del equipo, lo gestiona el equipo");
+    setMailStatus_(row, "— " + label + ": no se manda (mail del equipo)");
     return;
   }
   const testTo = String(cfg["Modo prueba: enviar todos los mails a"] || "").trim();
   const to = testTo || String(row["Email"] || "").trim();
   if (!to) {
     log_(row, row["Estado"], row["Estado"], "Mail " + key + " no enviado: el estudiante no tiene email");
+    setMailStatus_(row, "✗ " + label + ": el estudiante no tiene mail");
     return;
   }
   const vars = {
@@ -805,7 +827,10 @@ function sendTemplate_(key, row, act) {
     mail.body = text.replace(/\{boton\}/g, url ? "Confirmar: " + url : "");
     mail.htmlBody = textToHtml_(text, url);
   }
-  deliver_(mail, row, key);
+  const sent = deliver_(mail, row, key);
+  setMailStatus_(row, sent
+    ? "✓ " + label + " enviado " + nowText_() + (testTo ? " (modo prueba)" : "")
+    : "⏳ " + label + " en cola: se reintenta solo");
 }
 
 // ---------- Envío con cola ----------
@@ -843,6 +868,7 @@ function retryMails() {
   try {
     const cola = table_(TAB.COLA);
     const pending = cola.rows.filter((m) => !m["Enviado"] && m["Mail"]);
+    const solicitud = (m) => table_(TAB.SOL).rows.find((s) => s["ID"] === m["Solicitud"]);
     let sent = 0;
     for (let i = 0; i < pending.length; i++) {
       const m = pending[i];
@@ -851,9 +877,12 @@ function retryMails() {
       try {
         MailApp.sendEmail(mail);
         setCells_(cola, m, { "Enviado": new Date() });
+        setMailStatus_(solicitud(m), "✓ Enviado desde la cola " + nowText_() + ": " + m["Asunto"]);
         sent++;
       } catch (err) {
-        setCells_(cola, m, { "Intentos": (Number(m["Intentos"]) || 0) + 1, "Último error": String(err && err.message || err) });
+        const intentos = (Number(m["Intentos"]) || 0) + 1;
+        setCells_(cola, m, { "Intentos": intentos, "Último error": String(err && err.message || err) });
+        if (intentos >= 5) setMailStatus_(solicitud(m), "✗ No salió después de " + intentos + " intentos: ver Mails pendientes");
       }
     }
     return { enviados: sent, pendientes: pending.length - sent };
@@ -1404,12 +1433,15 @@ function formatTabs_() {
     SpreadsheetApp.newDataValidation().requireValueInList(ESTADOS, true).setAllowInvalid(false).build());
   // Colores: los de estas tres columnas se reemplazan; otras reglas del equipo se conservan
   const column = (h) => sol.sh.getRange(2, sol.headers.indexOf(h) + 1, sol.sh.getMaxRows() - 1, 1);
-  const ours = ["Estado", CONFIRM_COL, TIEMPO_COL].map((h) => sol.headers.indexOf(h) + 1);
+  const ours = ["Estado", CONFIRM_COL, TIEMPO_COL, MAIL_COL].map((h) => sol.headers.indexOf(h) + 1);
   const rule = () => SpreadsheetApp.newConditionalFormatRule();
   const rules = Object.keys(COLOR_ESTADO).map((e) => rule().whenTextEqualTo(e).setBackground(COLOR_ESTADO[e]).setRanges([column("Estado")]).build());
   rules.push(rule().whenTextEqualTo(CONFIRMO).setBackground("#c6efce").setRanges([column(CONFIRM_COL)]).build());
   rules.push(rule().whenTextEqualTo(NO_CONFIRMO).setBackground("#f4b6b6").setRanges([column(CONFIRM_COL)]).build());
   rules.push(rule().whenTextStartsWith(VENCIDO).setBackground("#e06666").setRanges([column(TIEMPO_COL)]).build());
+  [["✓", "#c6efce"], ["⏳", "#fff2cc"], ["✗", "#f4b6b6"]].forEach(([mark, color]) => {
+    rules.push(rule().whenTextStartsWith(mark).setBackground(color).setRanges([column(MAIL_COL)]).build());
+  });
   const kept = sol.sh.getConditionalFormatRules().filter((r) => !r.getRanges().some((g) => ours.indexOf(g.getColumn()) >= 0));
   sol.sh.setConditionalFormatRules(kept.concat(rules));
   ["DNI"].forEach((h) => {
