@@ -374,10 +374,12 @@ function initStatus() {
 
 // ---------- Carrusel del inicio ----------
 // Fotos de estudiantes: poné los archivos en img/carrusel/ y agregalos acá, en el orden en que se van a ver.
-// Tamaño ideal: 1000 × 1250 px (vertical 4:5), JPG o WebP de menos de 300 KB.
+// Tamaño ideal: 1400 × 1050 px (horizontal 4:3), JPG o WebP de menos de 300 KB (no HEIC: muchos navegadores no lo muestran).
 // Mientras la lista esté vacía, se ve el dibujo del camino de TUMO.
 const FOTOS_CARRUSEL = [
-    // { src: "img/carrusel/estudiantes-1.jpg", alt: "Estudiantes armando un joystick en TUMO Tank" },
+    { src: "img/carrusel/estudiantes-musica.jpg", alt: "Estudiantes con auriculares componiendo música en las computadoras de TUMO" },
+    { src: "img/carrusel/robot-tumo.jpg", alt: "Robot con brazo y orugas armado en el laboratorio de robótica de TUMO" },
+    { src: "img/carrusel/espacio-tumo.jpg", alt: "El espacio de TUMO Barracas, con gradas rojas y mesas de trabajo" },
 ];
 const CARRUSEL_SEGUNDOS = 4;
 
@@ -388,39 +390,42 @@ function initCarousel() {
     box.setAttribute("role", "region");
     box.setAttribute("aria-roledescription", "carrusel");
     box.setAttribute("aria-label", "Fotos de estudiantes en TUMO");
-    box.innerHTML = `
-        <div class="carousel__track">
-            ${FOTOS_CARRUSEL.map((f, i) => `
-                <figure class="carousel__slide${i === 0 ? " is-active" : ""}" aria-roledescription="foto" aria-label="${i + 1} de ${FOTOS_CARRUSEL.length}">
-                    <img src="${escapeHtml(f.src)}" alt="${escapeHtml(f.alt || "")}"${i ? ' loading="lazy"' : ""}>
-                </figure>`).join("")}
-        </div>
-        ${FOTOS_CARRUSEL.length > 1 ? `<div class="carousel__dots">
-            ${FOTOS_CARRUSEL.map((_, i) => `<button type="button" class="carousel__dot" aria-label="Ver foto ${i + 1}"${i === 0 ? ' aria-current="true"' : ""}></button>`).join("")}
-        </div>` : ""}`;
+    const slide = (f, i, copy) => `
+        <figure class="carousel__slide"${copy ? ' aria-hidden="true"' : ` aria-roledescription="foto" aria-label="${i + 1} de ${FOTOS_CARRUSEL.length}"`}>
+            <img src="${escapeHtml(f.src)}" alt="${copy ? "" : escapeHtml(f.alt || "")}"${i ? ' loading="lazy"' : ""}>
+        </figure>`;
+    // Al final va una copia de la primera foto: así de la última a la primera también se desliza hacia la izquierda
+    box.innerHTML = `<div class="carousel__track">
+        ${FOTOS_CARRUSEL.map((f, i) => slide(f, i, false)).join("")}
+        ${FOTOS_CARRUSEL.length > 1 ? slide(FOTOS_CARRUSEL[0], 0, true) : ""}
+    </div>`;
     if (FOTOS_CARRUSEL.length < 2) return;
 
-    const slides = $$(".carousel__slide", box);
-    const dots = $$(".carousel__dot", box);
+    const track = $(".carousel__track", box);
+    const total = FOTOS_CARRUSEL.length;
     let current = 0;
     let timer = null;
-    const show = (i) => {
-        current = (i + slides.length) % slides.length;
-        slides.forEach((s, j) => s.classList.toggle("is-active", j === current));
-        dots.forEach((d, j) => (j === current ? d.setAttribute("aria-current", "true") : d.removeAttribute("aria-current")));
+    const moveTo = (i) => { current = i; track.style.transform = `translateX(-${i * 100}%)`; };
+    // Al llegar a la copia, vuelve a la primera foto de verdad sin animación (no se nota: son iguales)
+    const backToStart = () => {
+        if (current !== total) return;
+        track.classList.add("is-jumping");
+        moveTo(0);
+        void track.offsetWidth; // aplica el salto antes de volver a animar
+        track.classList.remove("is-jumping");
+    };
+    track.addEventListener("transitionend", backToStart);
+    const next = () => {
+        backToStart(); // por si el navegador no avisó el fin de la animación
+        moveTo(current + 1);
     };
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const stop = () => { clearInterval(timer); timer = null; };
     const start = () => {
-        if (reduced || timer || document.hidden) return; // con "reducir movimiento", sólo se cambia con los puntitos
-        timer = setInterval(() => show(current + 1), CARRUSEL_SEGUNDOS * 1000);
+        if (reduced || timer || document.hidden) return; // con "reducir movimiento" queda la primera foto
+        timer = setInterval(next, CARRUSEL_SEGUNDOS * 1000);
     };
-    dots.forEach((d, i) => d.addEventListener("click", () => { show(i); stop(); start(); }));
-    // Se frena mientras el mouse o el teclado están encima, y con la pestaña oculta
-    box.addEventListener("mouseenter", stop);
-    box.addEventListener("mouseleave", start);
-    box.addEventListener("focusin", stop);
-    box.addEventListener("focusout", start);
+    // Se frena con la pestaña oculta y sigue al volver
     document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
     start();
 }
