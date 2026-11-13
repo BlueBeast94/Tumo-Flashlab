@@ -174,7 +174,7 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 /* Logo "Che Verano Barracas" + "Flash Labs" */
 .hero__title:has(.hero__logo) { font-size: inherit; line-height: 1; letter-spacing: normal; margin: 1rem 0 1rem; }
 .hero__logo { display: block; width: min(100%, 440px); height: auto; margin-left: -0.6rem; }
-.hero__name { display: block; margin-top: 0.2rem; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; }
+.hero__name { display: block; margin-top: 1.1rem; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; }
 
 /* Carrusel de fotos de estudiantes (reemplaza al dibujo cuando hay fotos) */
 /* Con fotos, el carrusel ocupa más lugar (sin apretar las pastillas de Fechas y Vacantes) */
