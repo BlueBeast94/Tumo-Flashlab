@@ -40,9 +40,15 @@
             <div class="hero__text">
                 <p class="tag">Diciembre 2026 · Exclusivo para estudiantes de TUMO</p>
                 <h1 class="hero__title">
-                    Flash<br>
-                    L<span class="hand">a</span>bs
+                    <picture>
+                        <source srcset="img/che-verano-barracas.webp" type="image/webp">
+                        <img class="hero__logo" src="img/che-verano-barracas.png" width="900" height="432" alt="Che Verano Barracas">
+                    </picture>
+                    <span class="hero__name">Flash Labs</span>
                 </h1>
+                <!-- Título anterior:
+                <h1 class="hero__title">Flash<br>L<span class="hand">a</span>bs</h1> -->
+
                 <p class="hero__lead">
                     Cuatro encuentros para crear, probar y construir junto al equipo de TUMO.
                     Elegí una actividad de la cartelera y solicitá tu vacante.
@@ -63,9 +69,9 @@
                 </div>
             </div>
 
-            <!-- TUMO path graphic -->
-            <div class="hero__art" aria-hidden="true">
-                <svg viewBox="0 0 520 560" class="path-art">
+            <!-- Carrusel de fotos de estudiantes (script.js, FOTOS_CARRUSEL). Sin fotos, se ve el camino de TUMO. -->
+            <div class="hero__art" data-carousel>
+                <svg viewBox="0 0 520 560" class="path-art" aria-hidden="true">
                     <path class="path-line" d="M70 70 H330 a90 90 0 0 1 0 180 H190 a90 90 0 0 0 0 180 H450" />
                     <circle cx="70"  cy="70"  r="46" fill="var(--yellow)" />
                     <circle cx="330" cy="70"  r="30" fill="var(--light)" stroke="var(--blue)" stroke-width="10" />

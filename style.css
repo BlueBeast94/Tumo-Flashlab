@@ -167,6 +167,40 @@ h3 { font-size: 1.3rem; font-weight: 800; }
     margin: 1.2rem 0 1.4rem;
 }
 .hero__title .hand { color: var(--red); font-size: 1.1em; }
+/* Logo "Che Verano Barracas" + "Flash Labs" */
+.hero__title:has(.hero__logo) { font-size: inherit; line-height: 1; letter-spacing: normal; margin: 1rem 0 1rem; }
+.hero__logo { display: block; width: min(100%, 440px); height: auto; margin-left: -0.6rem; }
+.hero__name { display: block; margin-top: 0.4rem; font-size: clamp(1.6rem, 3vw, 2.1rem); font-weight: 900; letter-spacing: -0.02em; }
+
+/* Carrusel de fotos de estudiantes (reemplaza al dibujo cuando hay fotos) */
+.carousel { position: relative; }
+.carousel__track {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    border-radius: 32px;
+    overflow: hidden;
+    background: var(--light);
+}
+.carousel__slide { position: absolute; inset: 0; margin: 0; opacity: 0; transition: opacity 0.8s ease; }
+.carousel__slide.is-active { opacity: 1; }
+.carousel__slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.carousel__dots { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.9rem; }
+.carousel__dot {
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ink);
+    opacity: 0.25;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+}
+.carousel__dot[aria-current="true"] { opacity: 1; transform: scale(1.3); background: var(--blue); }
+/* Sobre el rojo, la pastilla naranja "BARRACAS" se perdía: borde blanco alrededor del logo */
+html[data-theme="red"] .hero__logo { filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff); }
+html[data-theme="red"] .carousel__dot { background: var(--white); }
+html[data-theme="red"] .carousel__dot[aria-current="true"] { background: var(--yellow); }
 
 .hero__lead {
     font-size: 1.15rem;
