@@ -352,7 +352,8 @@ form.addEventListener("submit", async (e) => {
     const button = $("[data-submit]");
     button.disabled = true;
     button.textContent = "Enviando…";
-    const slow = setTimeout(() => formError("Hay mucha gente inscribiéndose: tu solicitud sigue en proceso. No cierres la página…"), 8000);
+    const slow = setTimeout(() => formError("Hay mucha gente inscribiéndose: tu solicitud sigue en proceso. " +
+        "Puede tardar unos minutos. No cierres la página…"), 8000);
 
     const result = await submitWithRetries({
         action: "solicitud",
@@ -390,17 +391,22 @@ async function savedAlready(dni) {
     return r.status === "ok" && r.mismaActividad ? { status: "ok", estado: r.estado, mensaje: r.mensaje } : null;
 }
 
+// Prioridad: que la solicitud llegue. Sigue intentando hasta 5 minutos antes de mostrar un error.
+const SUBMIT_PATIENCE_MS = 5 * 60 * 1000;
+
 async function submitWithRetries(body) {
+    const started = Date.now();
     let result;
-    for (let attempt = 1; attempt <= 4; attempt++) {
+    for (let attempt = 1; ; attempt++) {
         result = await apiCall({}, body, 30000);
         if (result.status === "activa") return (await savedAlready(body.dni)) || result;
         if (!RETRYABLE.includes(result.status)) return result;
-        await pause(2000 * attempt + Math.random() * 1500); // de a poco y no todos juntos
+        // Espera cada vez un poco más (hasta 15 s) y al azar, para que no reintenten todos juntos
+        await pause(Math.min(15000, 2000 * attempt) + Math.random() * 2000);
         const saved = await savedAlready(body.dni);
         if (saved) return saved;
+        if (Date.now() - started > SUBMIT_PATIENCE_MS) return result;
     }
-    return result;
 }
 
 function showDone(result) {

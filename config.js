@@ -17,7 +17,7 @@ const EVENT = {
     name: "FlashLabs de diciembre",
     center: "TUMO Barracas",
     dates: "del jueves 10 al jueves 17 de diciembre de 2026 (encuentros: jueves 10, viernes 11, martes 15 y jueves 17)",
-    slots: "tres franjas: 9:00 a 11:00, 14:00 a 16:00 y 17:00 a 19:00 (cada actividad y grupo tiene la suya)",
+    slots: "9:00 a 11:00, 12:00 a 14:00, 14:00 a 16:00 o 17:00 a 19:00 (cada actividad y grupo tiene la suya)",
     place: "TUMO Barracas",
     price: "Gratis",
     contact: "",  // mail o teléfono para casos que no se resuelven en la web (vacío = "acercate a recepción")

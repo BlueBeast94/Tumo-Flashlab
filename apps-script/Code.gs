@@ -100,7 +100,7 @@ const SEED_ACTIVIDADES = [
   ["animacion-gifs", "Animación de gifs", "Oli", "9:00 a 11:00", "14:00 a 16:00"],
   ["juego-cartas", "Creación de juegos de mesa", "Mati G, Agos, Gero", "9:00 a 11:00", "14:00 a 16:00"],
   ["carreras-iot", "Carreras con IOT", "Elu", "9:00 a 11:00", "14:00 a 16:00"],
-  ["sonido-codigo", "Del Sonido al Código", "Guido, Palo", "14:00 a 16:00", "17:00 a 19:00"],
+  ["sonido-codigo", "Del Sonido al Código", "Guido, Palo", "12:00 a 14:00", "17:00 a 19:00"],
   ["personajes-ia-3d", "Personajes IA en 3D", "Emi, Tade", "14:00 a 16:00", "17:00 a 19:00"],
   ["tumo-tank", "TUMO TANK", "Chichi, Marcos, Marian, Mati C", "17:00 a 19:00", ""],
 ];
@@ -143,6 +143,7 @@ const CATALOGO = {
     descripcion: "Cada grupo desarrolla un pequeño software de visualización a partir de sonidos que produce en Logic Pro y procesa con código.",
     requisito: "Tener Nivel 2 de Programación o Nivel 2 de Música aprobado", regla: "Programming_II o Music_II", valor: "Completed",
     capacidad: 18, herramientas: "Logic Pro y Visual Studio Code",
+    horarios: { A: "12:00 a 14:00" }, // el grupo A pasó de 14 a 16 a 12 a 14
   },
   "tumogotchi": {
     nombre: "TumoGotchi",
@@ -163,9 +164,9 @@ const CATALOGO = {
   "tumo-tank": {
     nombre: "TUMO Tank",
     descripcion: "4 clases (8 horas) en las que 8 equipos de 4 crean un juego arcade multijugador desde cero y arman su propio joystick físico con Arduino. La propuesta es asistir a las 4 clases.",
-    requisito: "Tener Nivel 1 aprobado en Robótica, Diseño Gráfico, Videojuegos o Música (alcanza con uno)",
-    regla: "Robotics_I o Graphic_Design_I o Game_Development_I o Music_I", valor: "Completed",
-    capacidad: 32, herramientas: "Illustrator, Arduino, Unity y Logic Pro",
+    requisito: "Tener Nivel 1 aprobado en Videojuegos, Robótica o Diseño Gráfico (alcanza con uno)",
+    regla: "Game_Development_I o Robotics_I o Graphic_Design_I", valor: "Completed",
+    capacidad: 32, herramientas: "Illustrator, Arduino y Unity",
   },
   "carreras-iot": {
     nombre: "Creación de juegos en el Carrier IoT",
@@ -1387,6 +1388,8 @@ function applyCatalog_() {
     const changes = {
       "Actividad": c.nombre, "Descripción": c.descripcion, "Requisito": c.requisito,
       "Columna requisito": c.regla, "Valor requerido": c.valor, "Capacidad": c.capacidad, "Herramientas": c.herramientas,
+      // horarios (opcional): sólo para los grupos que cambiaron, ej. { A: "12:00 a 14:00" }
+      "Horario": c.horarios ? c.horarios[String(row["Grupo"]).trim().toUpperCase()] : null,
     };
     Object.keys(changes).forEach((k) => { if (changes[k] === null || changes[k] === undefined) delete changes[k]; });
     setCells_(act, row, changes);
