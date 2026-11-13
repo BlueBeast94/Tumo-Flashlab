@@ -2,7 +2,8 @@
 // Los archivos que empiezan con "_" no se publican como endpoint en Vercel.
 // Variables de entorno: APPS_SCRIPT_URL (URL /exec) y APPS_SCRIPT_KEY.
 
-const TIMEOUT_MS = 15000;
+// Margen amplio: una inscripción con mucha gente al mismo tiempo puede esperar su turno unos segundos
+const TIMEOUT_MS = 25000;
 
 const isConfigured = () => Boolean(process.env.APPS_SCRIPT_URL && process.env.APPS_SCRIPT_KEY);
 

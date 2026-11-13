@@ -35,8 +35,8 @@ const HEADERS = {
   Historial: ["Fecha", "Usuario", "Solicitud", "DNI", "Antes", "Después", "Detalle"],
   Mensajes: ["Clave", "Asunto", "Cuerpo"],
   Config: ["Clave", "Valor", "Descripción"],
-  // Mails que Google no dejó mandar (límite diario u otro error): retryMails los reintenta solo
-  "Mails pendientes": ["Fecha", "Solicitud", "Para", "Asunto", "Intentos", "Último error", "Enviado", "Mail"],
+  // Cola de todos los mails automáticos: retryMails los manda cada minuto (y reintenta los que fallan)
+  "Mails pendientes": ["Fecha", "Solicitud", "Tipo", "Para", "Asunto", "Intentos", "Último error", "Enviado", "Mail"],
   Sync: ["Fecha", "Usuario", "Filas origen", "Estudiantes", "Con cursos (360)", "Sin TUMO ID",
     "TUMO ID sin 360", "Duplicados", "Filas ignoradas", "Manuales", "Segundos", "Detalle"],
 };
@@ -98,7 +98,7 @@ const SEED_ACTIVIDADES = [
   ["musica-cine", "Composición de Música para Cine", "Mati C", "9:00 a 11:00", "14:00 a 16:00"],
   ["tumogotchi", "TumoGotchi", "Santi", "9:00 a 11:00", "14:00 a 16:00"],
   ["animacion-gifs", "Animación de gifs", "Oli", "9:00 a 11:00", "14:00 a 16:00"],
-  ["juego-cartas", "Creación juego de cartas", "Mati G, Agos, Gero", "9:00 a 11:00", "14:00 a 16:00"],
+  ["juego-cartas", "Creación de juegos de mesa", "Mati G, Agos, Gero", "9:00 a 11:00", "14:00 a 16:00"],
   ["carreras-iot", "Carreras con IOT", "Elu", "9:00 a 11:00", "14:00 a 16:00"],
   ["sonido-codigo", "Del Sonido al Código", "Guido, Palo", "14:00 a 16:00", "17:00 a 19:00"],
   ["personajes-ia-3d", "Personajes IA en 3D", "Emi, Tade", "14:00 a 16:00", "17:00 a 19:00"],
@@ -155,7 +155,7 @@ const CATALOGO = {
     requisito: "", regla: "", valor: "", capacidad: 18, herramientas: "Harmony Toon Boom y tabletas Wacom",
   },
   "juego-cartas": {
-    nombre: "Creación de cartas",
+    nombre: "Creación de juegos de mesa",
     descripcion: "En grupo, creás un juego de cartas y un dado, y aprendés a balancear las mecánicas que inventen usando patrones de game design.",
     requisito: "Tener Diseño Gráfico 1 o Modelado 3D 1 aprobado (alcanza con uno; Videojuegos 1 recomendado)", regla: "Graphic_Design_I o 3D_Modeling_I", valor: "Completed",
     capacidad: 18, herramientas: "Illustrator y Maya",
@@ -254,9 +254,22 @@ function table_(name) {
   return MEMO[name];
 }
 
+// Pestañas donde sólo se agregan filas (Historial, cola de mails): alcanza con leer los títulos.
+// Leerlas enteras en cada inscripción se volvía más lento a medida que crecían.
+function appendOnly_(name, obj) {
+  const key = "titulos:" + name;
+  if (!MEMO[key]) {
+    const sh = ss_().getSheetByName(name);
+    if (!sh) throw new Error("Falta la pestaña " + name + ". Ejecutá setup().");
+    MEMO[key] = { sh: sh, headers: sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map((h) => String(h).trim()) };
+  }
+  append_(MEMO[key], obj);
+}
+
 // Después de escribir en Actividades/Config desde el script (setup), la caché queda vieja
 function forget_(name) {
   delete MEMO[name];
+  delete MEMO["titulos:" + name];
   if (CACHED_TABS.indexOf(name) >= 0) CacheService.getScriptCache().remove("tab:" + name);
 }
 
@@ -518,19 +531,28 @@ function register_(data) {
   if (data.confirmado !== true) return { status: "sin_confirmar" };
   if (!String(data.nombre || "").trim()) return { status: "falta_nombre" };
 
+  // Lo que no depende de las demás inscripciones (estudiante, requisitos) se revisa antes de hacer fila:
+  // así cada inscripción ocupa la fila muy poco tiempo y entran muchas más por minuto.
+  // No cumplir los requisitos no bloquea: se registra con prioridad 3
+  const r = verify_(data.dni, data.actividad);
+  if (["ok", "sin_verificar", "no_cumple"].indexOf(r.status) < 0) return publicVerify_(r);
+
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { status: "ocupado" };
   let saved = null;
   try {
-    // Se repite todo dentro del lock: evita duplicados y que dos personas tomen la última vacante
-    const r = verify_(data.dni, data.actividad);
-    // No cumplir los requisitos no bloquea: se registra con prioridad 3
-    if (["ok", "sin_verificar", "no_cumple"].indexOf(r.status) < 0) return publicVerify_(r);
+    // De a uno, sólo lo que depende de las demás: solicitud activa y cupo, con Solicitudes releída.
+    // Evita duplicados y que dos personas tomen la última vacante.
+    forget_(TAB.SOL);
+    const sol = table_(TAB.SOL);
+    const doc = dni_(data.dni);
+    if (sol.rows.some((s) => dni_(s["DNI"]) === doc && ACTIVOS.indexOf(s["Estado"]) >= 0)) return { status: "activa" };
+    const disp = availability_(r.act, sol.rows, config_());
+    if (disp.estado === "cerrada") return { status: "cerrada" };
 
     const estado = r.status === "sin_verificar" ? ESTADO.VALIDACION
-      : r.lugar === "espera" ? ESTADO.ESPERA : ESTADO.PENDIENTE;
+      : disp.estado === "espera" ? ESTADO.ESPERA : ESTADO.PENDIENTE;
     const validacion = { ok: "Requisitos OK", sin_verificar: "Faltan datos en el sistema", no_cumple: "No cumple requisitos" }[r.status];
-    const sol = table_(TAB.SOL);
     const id = "S-" + Utilities.formatDate(new Date(), "America/Argentina/Buenos_Aires", "yyMMdd") + "-" +
       Utilities.getUuid().slice(0, 6).toUpperCase();
     const row = {
@@ -554,13 +576,12 @@ function register_(data) {
     };
     append_(sol, row);
     row._row = sol.sh.getLastRow(); // con el lock tomado, es la fila recién agregada (para "Estado del mail")
-    log_(row, "", estado, "Solicitud recibida desde la web");
     saved = { row: row, act: r.act, cumple: r.status === "ok" };
   } finally {
     lock.releaseLock();
   }
-  // El mail se manda con el lock ya suelto: mandar tarda 1-2 s y con mucho tráfico todos esperaban en fila.
-  // Si falla, la solicitud igual queda registrada y el mail va a "Mails pendientes".
+  // Con la fila ya libre: Historial y el mail (va a la cola y sale en menos de un minuto)
+  try { log_(saved.row, "", saved.row["Estado"], "Solicitud recibida desde la web"); } catch (err) { console.error(err); }
   try { sendTemplate_("RECEPCION", saved.row, saved.act); } catch (err) { console.error(err); }
   const estado = saved.row["Estado"];
   return { status: "ok", estado: estado, mensaje: ESTADO_PUBLICO[estado], cumple: saved.cumple, confirmaEquipo: teamMail_(saved.row, config_()) };
@@ -616,13 +637,16 @@ function recalcPrioritiesNow() {
   try { SpreadsheetApp.getUi().alert(text); } catch (err) { console.log(text); }
 }
 
-function publicStatus_(dni) {
+// actividad (opcional): la web la manda después de un error al inscribirse, para saber si la solicitud
+// igual quedó guardada. Sólo se responde sí o no: nunca a qué actividad está anotado ese documento.
+function publicStatus_(dni, actividad) {
   dni = dni_(dni);
   const mine = table_(TAB.SOL).rows.filter((s) => dni_(s["DNI"]) === dni);
   const active = mine.filter((s) => ACTIVOS.indexOf(s["Estado"]) >= 0).pop();
   const last = active || mine.pop();
   if (!last) return { status: "no_encontrado" };
   const out = { status: "ok", estado: last["Estado"], mensaje: ESTADO_PUBLICO[last["Estado"]] || last["Estado"] };
+  if (actividad) out.mismaActividad = Boolean(active) && active["Actividad ID"] === String(actividad);
   // Sólo con la asistencia confirmada, y sólo el primer nombre: cualquiera que tenga el documento ve esta respuesta
   if (last["Estado"] === ESTADO.ASISTENCIA) {
     const act = table_(TAB.ACT).rows.find((a) => a["ID"] === last["Actividad ID"]);
@@ -652,7 +676,7 @@ function doGet(e) {
   try {
     if (p.action === "actividades") return json_({ status: "ok", actividades: publicActivities_() });
     if (p.action === "verificar") return json_(publicVerify_(verify_(p.dni, p.actividad)));
-    if (p.action === "estado") return json_(publicStatus_(p.dni));
+    if (p.action === "estado") return json_(publicStatus_(p.dni, p.actividad));
     if (p.action === "invitacion") return json_(publicInvite_(p.token));
     return json_({ status: "accion_invalida" });
   } catch (err) {
@@ -747,7 +771,7 @@ function onSheetEdit(e) {
 function log_(row, before, after, detail) {
   let user = "web";
   try { user = Session.getActiveUser().getEmail() || "web"; } catch (err) { /* sin permiso */ }
-  append_(table_(TAB.HIS), {
+  appendOnly_(TAB.HIS, {
     "Fecha": new Date(), "Usuario": user, "Solicitud": row["ID"], "DNI": row["DNI"],
     "Antes": before, "Después": after, "Detalle": detail,
   });
@@ -827,62 +851,58 @@ function sendTemplate_(key, row, act) {
     mail.body = text.replace(/\{boton\}/g, url ? "Confirmar: " + url : "");
     mail.htmlBody = textToHtml_(text, url);
   }
-  const sent = deliver_(mail, row, key);
-  setMailStatus_(row, sent
-    ? "✓ " + label + " enviado " + nowText_() + (testTo ? " (modo prueba)" : "")
-    : "⏳ " + label + " en cola: se reintenta solo");
+  queueMail_(mail, row, key);
+  setMailStatus_(row, "⏳ " + label + " en cola: sale en menos de un minuto");
 }
 
 // ---------- Envío con cola ----------
-// Google limita los mails por día (cuenta personal: ~100 destinatarios; cuenta de TUMO/Workspace: ~1500).
-// Si no hay cuota o el envío falla, el mail no se pierde: queda en "Mails pendientes" y retryMails
-// lo reintenta cada 10 minutos (y al día siguiente, cuando se renueva la cuota).
+// Todos los mails pasan por la pestaña "Mails pendientes" y los manda retryMails, que corre cada minuto.
+// Así nadie espera a que salga un mail (ni la familia en la web ni el equipo en la planilla), y con
+// mucho tráfico los envíos no se pisan. Google limita los mails por día (cuenta de TUMO/Workspace: ~1500):
+// sin cuota, quedan en la cola y salen al día siguiente.
 
 const recipients_ = (to) => String(to || "").split(",").filter((m) => m.trim()).length;
 
-function deliver_(mail, row, key) {
-  let error;
-  try {
-    if (MailApp.getRemainingDailyQuota() < recipients_(mail.to)) {
-      error = "Sin cuota de mails por hoy";
-    } else {
-      MailApp.sendEmail(mail);
-      return true;
-    }
-  } catch (err) {
-    error = String(err && err.message || err);
-  }
-  append_(table_(TAB.COLA), {
-    "Fecha": new Date(), "Solicitud": row["ID"], "Para": mail.to, "Asunto": mail.subject,
-    "Intentos": 1, "Último error": error, "Mail": JSON.stringify(mail),
+function queueMail_(mail, row, key) {
+  appendOnly_(TAB.COLA, {
+    "Fecha": new Date(), "Solicitud": row["ID"], "Tipo": key, "Para": mail.to, "Asunto": mail.subject,
+    "Intentos": 0, "Mail": JSON.stringify(mail),
   });
-  log_(row, row["Estado"], row["Estado"], "Mail " + key + " en cola (" + error + "): se reintenta solo");
-  return false;
 }
 
-// Trigger cada 10 minutos (lo crea setup). También se puede correr a mano desde el menú.
+// Trigger cada minuto (lo crea setup). También se puede correr a mano desde el menú.
 function retryMails() {
   resetMemo_();
   const lock = LockService.getDocumentLock(); // otro lock: no frena las inscripciones de la web
   if (!lock.tryLock(1000)) return { enviados: 0, pendientes: -1 };
+  const started = Date.now();
   try {
     const cola = table_(TAB.COLA);
     const pending = cola.rows.filter((m) => !m["Enviado"] && m["Mail"]);
     const solicitud = (m) => table_(TAB.SOL).rows.find((s) => s["ID"] === m["Solicitud"]);
     let sent = 0;
     for (let i = 0; i < pending.length; i++) {
+      if (Date.now() - started > 4 * 60 * 1000) break; // Google corta a los 6 min: el resto, en la próxima vuelta
       const m = pending[i];
       const mail = JSON.parse(m["Mail"]);
-      if (MailApp.getRemainingDailyQuota() < recipients_(mail.to)) break; // mañana sigue
+      const label = MAIL_LABEL[m["Tipo"]] || "Mail";
+      if (MailApp.getRemainingDailyQuota() < recipients_(mail.to)) {
+        const s = solicitud(m);
+        if (s && String(s[MAIL_COL]).indexOf("sin cuota") < 0) setMailStatus_(s, "⏳ " + label + " en cola: sin cuota de mails por hoy");
+        continue; // mañana sigue
+      }
       try {
         MailApp.sendEmail(mail);
         setCells_(cola, m, { "Enviado": new Date() });
-        setMailStatus_(solicitud(m), "✓ Enviado desde la cola " + nowText_() + ": " + m["Asunto"]);
+        setMailStatus_(solicitud(m), "✓ " + label + " enviado " + nowText_() +
+          (String(mail.subject).indexOf("[PRUEBA") === 0 ? " (modo prueba)" : ""));
         sent++;
       } catch (err) {
         const intentos = (Number(m["Intentos"]) || 0) + 1;
         setCells_(cola, m, { "Intentos": intentos, "Último error": String(err && err.message || err) });
-        if (intentos >= 5) setMailStatus_(solicitud(m), "✗ No salió después de " + intentos + " intentos: ver Mails pendientes");
+        setMailStatus_(solicitud(m), intentos >= 5
+          ? "✗ " + label + ": no salió después de " + intentos + " intentos, ver Mails pendientes"
+          : "⏳ " + label + ": falló el envío (intento " + intentos + "), se reintenta solo");
       }
     }
     return { enviados: sent, pendientes: pending.length - sent };
@@ -897,7 +917,7 @@ function showMailQuota() {
   const pendientes = table_(TAB.COLA).rows.filter((m) => !m["Enviado"] && m["Mail"]).length;
   const text = "Mails que se pueden mandar hoy (destinatarios): " + MailApp.getRemainingDailyQuota() +
     "\nMails en cola (Mails pendientes): " + pendientes +
-    "\n\nLa cola se reintenta sola cada 10 minutos. Para mandarla ahora: FlashLabs > Reintentar mails pendientes.";
+    "\n\nLa cola se manda sola cada minuto. Para mandarla ahora: FlashLabs > Reintentar mails pendientes.";
   try { SpreadsheetApp.getUi().alert(text); } catch (err) { console.log(text); }
 }
 
@@ -1118,7 +1138,7 @@ function setup() {
     .forEach((t) => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("onSheetEdit").forSpreadsheet(ss).onEdit().create();
   ScriptApp.newTrigger("syncStudents").timeBased().everyDays(1).atHour(3).create(); // todas las noches
-  ScriptApp.newTrigger("retryMails").timeBased().everyMinutes(10).create(); // mails que quedaron en cola
+  ScriptApp.newTrigger("retryMails").timeBased().everyMinutes(1).create(); // manda los mails de la cola
   ScriptApp.newTrigger("updateDeadlines").timeBased().everyHours(1).create(); // días transcurridos para confirmar
   updateDeadlines();
 

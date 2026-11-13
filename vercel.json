@@ -5,7 +5,7 @@
       "maxDuration": 20
     },
     "api/inscripcion.js": {
-      "maxDuration": 20
+      "maxDuration": 30
     }
   }
 }

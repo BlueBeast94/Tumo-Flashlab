@@ -352,9 +352,9 @@ form.addEventListener("submit", async (e) => {
     const button = $("[data-submit]");
     button.disabled = true;
     button.textContent = "Enviando…";
-    const slow = setTimeout(() => formError("Está tardando más de lo esperado. No cierres la página…"), 8000);
+    const slow = setTimeout(() => formError("Hay mucha gente inscribiéndose: tu solicitud sigue en proceso. No cierres la página…"), 8000);
 
-    const result = await apiCall({}, {
+    const result = await submitWithRetries({
         action: "solicitud",
         dni: dniInput.value,
         nombre: nameInput.value.trim(),
@@ -378,6 +378,30 @@ form.addEventListener("submit", async (e) => {
     // Cualquier otro caso: NO se muestra la recepción
     formError(verifyMessage(result)[1].replace(retryButton, "Probá de nuevo."));
 });
+
+// Con mucho tráfico el sistema puede tardar o estar ocupado. Antes de mostrar un error, pregunta si la
+// solicitud igual quedó guardada (puede pasar si la respuesta llegó tarde) y, si no, reintenta.
+// Reintentar no duplica: el sistema rechaza una segunda solicitud activa del mismo documento.
+const RETRYABLE = ["ocupado", "timeout", "sin_conexion", "error", "demasiados_intentos"];
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function savedAlready(dni) {
+    const r = await apiCall({ action: "estado", dni, actividad: act.id });
+    return r.status === "ok" && r.mismaActividad ? { status: "ok", estado: r.estado, mensaje: r.mensaje } : null;
+}
+
+async function submitWithRetries(body) {
+    let result;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+        result = await apiCall({}, body, 30000);
+        if (result.status === "activa") return (await savedAlready(body.dni)) || result;
+        if (!RETRYABLE.includes(result.status)) return result;
+        await pause(2000 * attempt + Math.random() * 1500); // de a poco y no todos juntos
+        const saved = await savedAlready(body.dni);
+        if (saved) return saved;
+    }
+    return result;
+}
 
 function showDone(result) {
     const detail = {

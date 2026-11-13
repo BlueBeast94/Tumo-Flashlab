@@ -3,7 +3,7 @@
 //
 // GET  /api/inscripcion?action=actividades
 // GET  /api/inscripcion?action=verificar&dni=…&actividad=…
-// GET  /api/inscripcion?action=estado&dni=…
+// GET  /api/inscripcion?action=estado&dni=…[&actividad=…]
 // GET  /api/inscripcion?action=invitacion&token=…   (página confirmar.html, botón del mail)
 // POST /api/inscripcion  { action: "solicitud", dni, nombre, actividad, confirmado: true }
 // POST /api/inscripcion  { action: "confirmar", token }
@@ -15,8 +15,9 @@
 const { callAppsScript, isConfigured } = require("./_appsScript");
 const { handleCors } = require("./_cors");
 
-// Límite por IP y por minuto (en memoria: es aproximado, alcanza para frenar abusos simples)
-const LIMITS = { actividades: 60, verificar: 30, estado: 20, invitacion: 20, solicitud: 6, confirmar: 10 };
+// Límite por IP y por minuto (en memoria: es aproximado, alcanza para frenar abusos simples).
+// Alto a propósito: muchas familias pueden inscribirse desde una misma red (por ejemplo el wifi de TUMO).
+const LIMITS = { actividades: 120, verificar: 60, estado: 40, invitacion: 20, solicitud: 30, confirmar: 20 };
 const hits = new Map();
 
 function rateLimited(ip, action) {
@@ -60,16 +61,23 @@ module.exports = async function handler(req, res) {
     }
     const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
     const url = new URL(req.url, "http://localhost");
+    // Pruebas de carga: con la clave LOAD_TEST_KEY (variable de Vercel) no se aplica el límite por IP,
+    // así una sola computadora puede simular familias de muchos lugares. Sin esa variable, no hace nada.
+    const loadTest = Boolean(process.env.LOAD_TEST_KEY) && req.headers["x-prueba-carga"] === process.env.LOAD_TEST_KEY;
+    const limited = (action) => !loadTest && rateLimited(ip, action);
 
     if (req.method === "GET") {
         const action = url.searchParams.get("action");
         if (!["actividades", "verificar", "estado", "invitacion"].includes(action)) return send(res, 400, { status: "accion_invalida" });
-        if (rateLimited(ip, action)) return send(res, 429, { status: "demasiados_intentos" });
+        if (limited(action)) return send(res, 429, { status: "demasiados_intentos" });
 
         const params = { action };
         if (action === "invitacion") params.token = tokenId(url.searchParams.get("token"));
         else if (action !== "actividades") params.dni = docId(url.searchParams.get("dni"));
-        if (action === "verificar") params.actividad = clean(url.searchParams.get("actividad"), 40);
+        // estado + actividad: la web pregunta si una inscripción que dio error igual quedó guardada
+        if (action === "verificar" || (action === "estado" && url.searchParams.get("actividad"))) {
+            params.actividad = clean(url.searchParams.get("actividad"), 40);
+        }
         const data = await callAppsScript(params);
         const cache = action === "actividades" && data.status === "ok"
             ? { "Cache-Control": "s-maxage=20, stale-while-revalidate=60" }
@@ -81,11 +89,11 @@ module.exports = async function handler(req, res) {
         let body;
         try { body = await readBody(req); } catch { return send(res, 400, { status: "error" }); }
         if (body.action === "confirmar") {
-            if (rateLimited(ip, "confirmar")) return send(res, 429, { status: "demasiados_intentos" });
+            if (limited("confirmar")) return send(res, 429, { status: "demasiados_intentos" });
             const data = await callAppsScript(null, { action: "confirmar", token: tokenId(body.token) });
             return send(res, data.status === "timeout" ? 504 : 200, data, { "Cache-Control": "no-store" });
         }
-        if (rateLimited(ip, "solicitud")) return send(res, 429, { status: "demasiados_intentos" });
+        if (limited("solicitud")) return send(res, 429, { status: "demasiados_intentos" });
         const data = await callAppsScript(null, {
             action: "solicitud",
             dni: docId(body.dni),
