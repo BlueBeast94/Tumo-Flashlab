@@ -172,13 +172,19 @@ h3 { font-size: 1.3rem; font-weight: 800; }
 }
 .hero__title .hand { color: var(--red); font-size: 1.1em; }
 /* Logo "Che Verano Barracas" + "Flash Labs" */
-.hero__title:has(.hero__logo) { font-size: inherit; line-height: 1; letter-spacing: normal; margin: 1rem 0 1rem; }
-.hero__logo { display: block; width: min(100%, 440px); height: auto; margin-left: -0.6rem; }
-.hero__name { display: block; margin-top: 1.1rem; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; }
+.hero__title:has(.hero__logo) { font-size: inherit; line-height: 1; letter-spacing: normal; margin: 1.2rem 0 1rem; }
+.hero__logo { display: block; width: min(100%, 520px); height: auto; margin: 0 auto; }
+.hero__name { display: block; margin-top: 1.4rem; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.01em; }
+/* Columna del texto centrada: logo, "Flash Labs" y descripción en un mismo eje */
+.hero__text:has(.hero__logo) { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.hero__text:has(.hero__logo) .hero__lead { font-size: 1.25rem; max-width: 30ch; }
 
 /* Carrusel de fotos de estudiantes (reemplaza al dibujo cuando hay fotos) */
-/* Con fotos, el carrusel ocupa más lugar (sin apretar las pastillas de Fechas y Vacantes) */
-@media (min-width: 961px) { .hero:has(.carousel) { grid-template-columns: minmax(470px, 1fr) 1.2fr; } }
+/* Con fotos, el carrusel es la mitad más grande del inicio y queda contra el borde derecho */
+@media (min-width: 961px) {
+    .hero:has(.carousel) { grid-template-columns: minmax(430px, 1fr) 1.3fr; gap: 3rem; }
+    .hero__art.carousel { margin-right: calc(var(--gutter) * -0.5); }
+}
 .carousel {
     position: relative;
     aspect-ratio: 4 / 3; /* las fotos son horizontales */
