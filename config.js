@@ -9,7 +9,7 @@
 // También sirve abriendo index.html con doble clic (file://).
 const API_BASE = typeof location !== "undefined" && (location.protocol === "file:" ||
     (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && location.port !== "5173"))
-    ? "https://tumoflashlab.vercel.app"
+    ? "https://tumobarracas.vercel.app"
     : "";
 const API_URL = `${API_BASE}/api/inscripcion`;
 

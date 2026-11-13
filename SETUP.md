@@ -25,7 +25,7 @@ Web (Vercel) ──▶ /api/inscripcion (Vercel) ──▶ Apps Script (Code.gs)
 3. En Vercel → proyecto → **Settings → Environments → Production → Environment Variables**, agregá:
    - `APPS_SCRIPT_URL` = la URL `/exec`
    - `APPS_SCRIPT_KEY` = la clave del paso 1.3
-4. Redeploy (o push). Probá: `https://tumoflashlab.vercel.app/api/inscripcion?action=actividades` debe devolver las actividades.
+4. Redeploy (o push). Probá: `https://tumobarracas.vercel.app/api/inscripcion?action=actividades` (la dirección vieja, tumoflashlab.vercel.app, sigue funcionando para los links de mails ya enviados) debe devolver las actividades.
 
 > Cada vez que cambies `Code.gs`: **Implementar → Administrar implementaciones → ✏️ → Versión: Nueva → Implementar**. Así la URL no cambia.
 

@@ -125,7 +125,7 @@ const SEED_CONFIG = [
   ["Origen back: columna nombre", "N", ""],
   ["Origen back: columna email", "F", "Mail real de contacto."],
   ["Origen back: columna email 2", "G", "Segundo mail (opcional)."],
-  ["URL del sitio", "https://tumoflashlab.vercel.app", "Dirección de la web. El botón \"Confirmar\" de los mails lleva a esta web."],
+  ["URL del sitio", "https://tumobarracas.vercel.app", "Dirección de la web. El botón \"Confirmar\" de los mails lleva a esta web."],
 ];
 
 // Datos de "Flash Labs" (descripciones, requisitos y cupos). Se cargan con el menú
@@ -933,7 +933,7 @@ function retryMailsNow() {
 function confirmUrl_(row, cfg) {
   const token = String(row["Token"] || "").trim();
   if (!token) return "";
-  const site = String(cfg["URL del sitio"] || "https://tumoflashlab.vercel.app").trim().replace(/\/+$/, "");
+  const site = String(cfg["URL del sitio"] || "https://tumobarracas.vercel.app").trim().replace(/\/+$/, "");
   return site + "/confirmar.html?t=" + encodeURIComponent(token);
 }
 
