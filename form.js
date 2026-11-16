@@ -167,6 +167,11 @@ function setVerify(state, html) {
 
 const retryButton = '<button type="button" class="verify__retry" data-retry>Probar de nuevo</button>';
 
+// Sin cumplir el requisito no se puede pedir vacante (el sistema también lo rechaza)
+const NOT_ELIGIBLE = "No es posible realizar la inscripción porque no cumplís con uno o más de los requisitos del FlashLab seleccionado. " +
+    'Te invitamos a volver a la <a href="index.html#actividades">cartelera</a> y elegir otro FlashLab que se ajuste a los requisitos que cumplís o que no tenga requisitos de inscripción. ' +
+    'Ante cualquier duda, podés escribirnos a <a href="mailto:familias.cmd@tumo.ar">familias.cmd@tumo.ar</a>.';
+
 function verifyMessage(r) {
     switch (r.status) {
         case "ok":
@@ -181,8 +186,7 @@ function verifyMessage(r) {
         case "activa":
             return ["error", `Este documento ya tiene una inscripción activa. Cada estudiante puede solicitar una sola actividad. Para cambiarla, ${contactText()}.`];
         case "no_cumple":
-            return ["warn", "Documento verificado. Todavía no cumplís el requisito: igual podés enviar la solicitud, " +
-                "pero vas a quedar detrás de quienes los cumplen."];
+            return ["error", NOT_ELIGIBLE];
         case "cerrada":
             return ["error", "La inscripción a esta actividad se cerró."];
         case "actividad_invalida":
@@ -215,14 +219,13 @@ function renderRequirements(r) {
     // Qué le falta: en "todos" los no aprobados; en "alcanza con uno", cualquiera de la lista
     const missing = req.cursos.filter((c) => c.estado !== "ok").map((c) => c.curso);
     const join = (list, last) => list.length > 1 ? `${list.slice(0, -1).join(", ")} ${last} ${list[list.length - 1]}` : list[0];
-    const notYet = (req.modo === "any" && several
-        ? `Todavía no cumplís el requisito: necesitás tener aprobado ${join(missing, "o")}.`
-        : `Todavía no cumplís el requisito: te falta aprobar ${join(missing, "y")}.`) +
-        " Igual podés enviar la solicitud: tienen prioridad quienes cumplen los requisitos.";
+    const notYet = req.modo === "any" && several
+        ? `Para este FlashLab necesitás tener aprobado ${join(missing, "o")}.`
+        : `Para este FlashLab te falta aprobar ${join(missing, "y")}.`;
     const verdict = {
         ok: ["ok", "¡Cumplís el requisito! Podés solicitar vacante en esta actividad."],
-        // Amarillo, no rojo: no cumplir no bloquea, sólo baja la prioridad
-        no_cumple: ["unknown", missing.length ? notYet : "Todavía no cumplís el requisito de esta actividad."],
+        // Rojo: sin cumplir el requisito no se puede enviar la solicitud (el mensaje completo está arriba)
+        no_cumple: ["no", missing.length ? notYet : "No cumplís el requisito de esta actividad."],
     }[r.status] || ["unknown", req.sinHistorial
         ? "No encontramos tu historial de cursos. Podés enviar la solicitud y el equipo de TUMO lo va a revisar."
         : "No pudimos confirmar todos los cursos. Podés enviar la solicitud y el equipo de TUMO lo va a revisar."];
@@ -343,7 +346,8 @@ form.addEventListener("submit", async (e) => {
         if (dniInput.value.length < MIN_DOC) setVerify("error", "Escribí tu DNI o documento.");
         return formError(dniInput.value.length >= MIN_DOC ? "Esperá a que termine la verificación del documento." : "Revisá tu documento.");
     }
-    if (!["ok", "sin_verificar", "no_cumple"].includes(r.status)) return formError("Revisá el mensaje del documento antes de enviar.");
+    if (r.status === "no_cumple") return formError(NOT_ELIGIBLE);
+    if (!["ok", "sin_verificar"].includes(r.status)) return formError("Revisá el mensaje del documento antes de enviar.");
     if (!form.confirmo.checked) {
         $("[data-field='confirmo']").classList.add("is-invalid");
         return formError("Marcá la confirmación para enviar tu solicitud.");

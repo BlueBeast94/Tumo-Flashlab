@@ -105,7 +105,7 @@ La columna **Datos 360** de Estudiantes también lo resume: `OK`, `Sin TUMO ID e
   | Prerequisite Not Done | ⛔ no cumple |
   | Prerequisite Conditional, o sin datos del 360 (sin TUMO ID) | ⚠️ no se puede verificar → se registra *En validación* |
 
-- **No cumplir los requisitos no bloquea:** la solicitud se registra igual, con menos prioridad. La columna **Prioridad** de Solicitudes dice:
+- **Sin cumplir los requisitos no se puede inscribir:** si los cursos del 360 figuran sin aprobar, la web muestra que elija otro FlashLab y el sistema rechaza la solicitud. Si faltan datos para saberlo, se registra igual y lo revisa el equipo. La columna **Prioridad** de Solicitudes dice:
   - `1 · Cumple requisitos`
   - `2 · Sin verificar`
   - `3 · No cumple requisitos`

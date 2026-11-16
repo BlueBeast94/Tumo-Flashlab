@@ -534,9 +534,10 @@ function register_(data) {
 
   // Lo que no depende de las demás inscripciones (estudiante, requisitos) se revisa antes de hacer fila:
   // así cada inscripción ocupa la fila muy poco tiempo y entran muchas más por minuto.
-  // No cumplir los requisitos no bloquea: se registra con prioridad 3
+  // Sin cumplir el requisito (con datos confirmados del 360) no se registra: la web muestra que elija otro FlashLab.
+  // Si faltan datos para saberlo ("sin_verificar"), se registra y lo revisa el equipo.
   const r = verify_(data.dni, data.actividad);
-  if (["ok", "sin_verificar", "no_cumple"].indexOf(r.status) < 0) return publicVerify_(r);
+  if (["ok", "sin_verificar"].indexOf(r.status) < 0) return publicVerify_(r);
 
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return { status: "ocupado" };
