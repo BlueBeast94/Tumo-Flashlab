@@ -157,7 +157,7 @@ const CATALOGO = {
   },
   "juego-cartas": {
     nombre: "Creación de juegos de mesa",
-    descripcion: "En grupo, creás un juego de cartas y un dado, y aprendés a balancear las mecánicas que inventen usando patrones de game design.",
+    descripcion: "¡Inventá tu propio juego de mesa! Desde cero, pensamos en grupo las reglas y los elementos necesarios para jugarlo. Después, nos dividimos en equipos de Diseño Gráfico y Modelado 3D para crear e imprimir las cartas y los objetos 3D del juego.",
     requisito: "Tener Diseño Gráfico 1 o Modelado 3D 1 aprobado (alcanza con uno; Videojuegos 1 recomendado)", regla: "Graphic_Design_I o 3D_Modeling_I", valor: "Completed",
     capacidad: 18, herramientas: "Illustrator y Maya",
   },
@@ -433,14 +433,16 @@ function availability_(act, solicitudes, cfg) {
   const count = (estados) => mine.filter((s) => estados.indexOf(s["Estado"]) >= 0).length;
   const capacidad = Number(act["Capacidad"]) || 0;
   // Sólo ocupa lugar quien tiene la asistencia confirmada (por la familia, o por el equipo con el mail de Sofía).
-  // Mientras tanto se puede seguir pidiendo vacante: el grupo pasa a lista de espera recién con el cupo
-  // lleno de Asistencia confirmada. (El equipo igual no puede confirmar más que la capacidad: ver onSheetEdit.)
+  // Mientras tanto se puede seguir pidiendo vacante. Con el cupo lleno de Asistencia confirmada el grupo queda
+  // "completo": la web lo muestra así y no acepta más solicitudes. (El equipo igual no puede confirmar más que
+  // la capacidad: ver onSheetEdit.) "Lista de espera" en la columna Inscripción sigue abriendo la lista a mano.
   const ocupadas = count([ESTADO.ASISTENCIA]);
   const inscripcion = norm_(act["Inscripción"]);
 
   let estado = "abierta";
   if (!isYes_(cfg["Inscripción abierta"]) || inscripcion === "cerrada") estado = "cerrada";
-  else if (inscripcion === "lista de espera" || ocupadas >= capacidad) estado = "espera";
+  else if (inscripcion === "lista de espera") estado = "espera";
+  else if (ocupadas >= capacidad) estado = "completo";
 
   return {
     estado: estado,
@@ -484,7 +486,7 @@ function publicActivities_() {
 // Devuelve sólo códigos: nunca datos personales de otra persona.
 //   ok            → puede continuar (lugar: "vacante" | "espera")
 //   sin_verificar → no se pudo comprobar un requisito: se registra "En validación"
-//   dni_invalido | no_encontrado | activa | no_cumple | cerrada | actividad_invalida
+//   dni_invalido | no_encontrado | activa | no_cumple | cerrada | completo | actividad_invalida
 
 function verify_(dni, actividadId) {
   dni = dni_(dni);
@@ -503,7 +505,7 @@ function verify_(dni, actividadId) {
   const act = table_(TAB.ACT).rows.find((a) => a["ID"] === actividadId && isYes_(a["Habilitado"]));
   if (!act) return { status: "actividad_invalida" };
   const disp = availability_(act, solicitudes, config_());
-  if (disp.estado === "cerrada") return { status: "cerrada" };
+  if (disp.estado === "cerrada" || disp.estado === "completo") return { status: disp.estado };
 
   const result = {
     student: student, act: act, lugar: disp.estado === "espera" ? "espera" : "vacante",
@@ -550,7 +552,7 @@ function register_(data) {
     const doc = dni_(data.dni);
     if (sol.rows.some((s) => dni_(s["DNI"]) === doc && ACTIVOS.indexOf(s["Estado"]) >= 0)) return { status: "activa" };
     const disp = availability_(r.act, sol.rows, config_());
-    if (disp.estado === "cerrada") return { status: "cerrada" };
+    if (disp.estado === "cerrada" || disp.estado === "completo") return { status: disp.estado };
 
     const estado = r.status === "sin_verificar" ? ESTADO.VALIDACION
       : disp.estado === "espera" ? ESTADO.ESPERA : ESTADO.PENDIENTE;

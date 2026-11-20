@@ -337,6 +337,11 @@ html[data-theme="red"] .nav .logo-img { filter: brightness(0) invert(1); }
     white-space: nowrap;
 }
 .sched__time svg { width: 1.1em; height: 1.1em; flex: none; }
+/* Horario con el cupo completo: gris, tachado y con la aclaración */
+.sched__time.is-full, .card .sched__time.is-full { background: #e4e4e7; color: #71717a; }
+.sched__time.is-full s { text-decoration-thickness: 2px; }
+.sched__time.is-full small { font-size: 0.62em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.card .sched__time.is-full small { display: none; } /* en la tarjeta no entra: alcanza con el gris y el tachado */
 .sched__days { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .day {
     display: grid;
@@ -401,6 +406,7 @@ html[data-theme="red"] .nav .logo-img { filter: brightness(0) invert(1); }
 .state--abierta { --dot: #1fa463; }
 .state--espera  { --dot: var(--yellow); }
 .state--cerrada { --dot: #9a9aa2; }
+.state--completo { --dot: #e5262e; }
 
 .cards {
     margin-top: 2rem;
@@ -431,6 +437,27 @@ html[data-theme="red"] .nav .logo-img { filter: brightness(0) invert(1); }
 .card--pink   { background: var(--pink);   color: var(--white); }
 .card.is-closed { filter: grayscale(0.85); opacity: 0.75; }
 .card.is-closed:hover { transform: none; }
+/* Cupos completos: la tarjeta en gris con una franja roja grande adelante (no se puede pedir vacante) */
+.card.is-full { background: #d4d4d8; color: var(--ink); }
+.card.is-full > :not(.card__strap) { filter: grayscale(1); opacity: 0.6; }
+.card.is-full:hover { transform: none; }
+.card__strap {
+    position: absolute;
+    left: -0.6rem;
+    right: -0.6rem;
+    top: 58%;
+    z-index: 3;
+    padding: 0.55rem 0.5rem;
+    background: #e5262e;
+    color: #fff;
+    font: 900 clamp(1.3rem, 2.6vw, 1.75rem)/1 var(--font);
+    letter-spacing: 0.02em;
+    text-align: center;
+    text-transform: uppercase;
+    transform: rotate(-4deg);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+}
 
 /* Imagen (o animación) arriba, con el nombre encima */
 /* Menos ruido visual: las animaciones de las tarjetas quedan quietas y corren sólo en la tarjeta activa */
@@ -1376,6 +1403,8 @@ html[data-theme="red"] .confirm-invite { color: var(--ink); }
 .time-opt small { font-size: 0.72rem; font-weight: 700; opacity: 0.8; }
 .time-opt:hover { background: rgba(39, 48, 231, 0.08); }
 .time-opt[aria-checked="true"] { background: var(--blue); color: var(--white); }
+.time-opt[disabled] { background: #e4e4e7; border-color: #d4d4d8; color: #71717a; cursor: not-allowed; }
+.time-opt[disabled] span { text-decoration: line-through; }
 .time-opt:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 /* "Sí, continuar" apagado hasta elegir horario */
 .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }

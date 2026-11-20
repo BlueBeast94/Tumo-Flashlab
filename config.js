@@ -143,10 +143,14 @@ const timeText = (horario) => String(horario || "").replace(/\s+a\s+/i, " – ")
 
 // extra: HTML opcional que va en la misma fila que el horario (el estado, en las tarjetas)
 // act.horarios (opcional): varios horarios, uno por grupo; [] = sin horario (se elige aparte)
+// act.horariosLlenos (opcional): true en los horarios con el cupo completo (se muestran tachados)
 function scheduleHtml(act, size = "md", extra = "") {
     const times = (act.horarios || [act.horario]).map(timeText);
+    const full = act.horariosLlenos || [];
     const time = escapeHtml(times.join(" o "));
-    const timeBadge = times.map((t) => `<span class="sched__time">${CLOCK}${escapeHtml(t)}</span>`).join("");
+    const timeBadge = times.map((t, i) => full[i]
+        ? `<span class="sched__time is-full" title="Cupo completo">${CLOCK}<s>${escapeHtml(t)}</s><small>Completo</small></span>`
+        : `<span class="sched__time">${CLOCK}${escapeHtml(t)}</span>`).join("");
     const { days, month, note } = parseDias(act.dias);
     if (!days.length) {
         return `<div class="sched sched--${size}">${timeBadge}<p class="sched__text">${escapeHtml(act.dias)}</p></div>`;

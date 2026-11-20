@@ -10,11 +10,14 @@ const COLORS = ["blue", "red", "yellow", "dark"];
 const STATE = {
     abierta: { label: "Inscripción abierta", cta: "Solicitar vacante" },
     espera:  { label: "Lista de espera", cta: "Anotarme en lista de espera" },
+    completo: { label: "Cupos completos", cta: "" },
     cerrada: { label: "Inscripción cerrada", cta: "" },
 };
+// Estados en los que no se puede pedir vacante
+const SIN_INSCRIPCION = ["completo", "cerrada"];
 
 // Versión corta del estado, arriba a la derecha de la imagen en cada tarjeta
-const CARD_STATE = { abierta: "Disponible", espera: "En espera", cerrada: "Cerrada" };
+const CARD_STATE = { abierta: "Disponible", espera: "En espera", completo: "Completo", cerrada: "Cerrada" };
 
 let actividades = []; // una por actividad (los grupos A y B juntos, ver joinGroups)
 
@@ -35,8 +38,11 @@ function joinGroups(rows) {
             id: grupos.length > 1 ? base : grupos[0].id,
             grupos,
             horarios: grupos.map((g) => g.horario),
-            // Disponible si algún grupo tiene vacantes; si no, en espera si alguno la tiene
-            estado: estados.includes("abierta") ? "abierta" : estados.includes("espera") ? "espera" : "cerrada",
+            // Horarios con el cupo lleno de Asistencia confirmada: se muestran tachados
+            horariosLlenos: grupos.map((g) => g.estado === "completo"),
+            // Disponible si algún grupo tiene vacantes; si no, en espera si alguno la tiene; si todos están llenos, completo
+            estado: estados.includes("abierta") ? "abierta" : estados.includes("espera") ? "espera"
+                : estados.includes("completo") ? "completo" : "cerrada",
             libres: grupos.reduce((n, g) => n + (g.estado === "abierta" ? Number(g.libres) || 0 : 0), 0),
         };
     });
@@ -195,8 +201,8 @@ function stateBadge(estado) {
 }
 
 function signupButton(act, extraClass = "") {
-    if (act.estado === "cerrada") {
-        return `<span class="btn card__signup is-disabled ${extraClass}" aria-disabled="true">Inscripción cerrada</span>`;
+    if (SIN_INSCRIPCION.includes(act.estado)) {
+        return `<span class="btn card__signup is-disabled ${extraClass}" aria-disabled="true">${STATE[act.estado].label}</span>`;
     }
     return `<a class="btn card__signup ${extraClass}" href="${signupUrl(act)}">${STATE[act.estado].cta}</a>`;
 }
@@ -207,7 +213,8 @@ function renderCards() {
     // Tarjeta: imagen (o animación), nombre, horario + estado, días y botón.
     // Toda la tarjeta abre el detalle; el botón "Solicitar vacante" va directo al formulario.
     wrap.innerHTML = actividades.map((act) => `
-        <article class="card card--${colorOf(act)} ${act.estado === "cerrada" ? "is-closed" : ""}">
+        <article class="card card--${colorOf(act)} ${act.estado === "cerrada" ? "is-closed" : ""} ${act.estado === "completo" ? "is-full" : ""}">
+            ${act.estado === "completo" ? '<span class="card__strap" aria-hidden="true">Cupos completos</span>' : ""}
             <div class="card__media">
                 ${mediaOf(act, true)}
                 <span class="card__badge state state--${act.estado}">${CARD_STATE[act.estado]}</span>
@@ -321,7 +328,7 @@ function openPanel(id) {
     $("[data-lab-tools-box]").hidden = !act.herramientas;
 
     const cta = $("[data-lab-signup]");
-    cta.hidden = act.estado === "cerrada";
+    cta.hidden = SIN_INSCRIPCION.includes(act.estado);
     cta.href = signupUrl(act);
     cta.textContent = STATE[act.estado].cta;
 

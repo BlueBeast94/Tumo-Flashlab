@@ -72,12 +72,19 @@ async function init() {
     info = todos[0];
     grupos = todos.filter((g) => g.estado !== "cerrada");
     if (!grupos.length) return showMessage(`La inscripción a ${actName()} está cerrada.`);
-    act = target && target.estado !== "cerrada" ? target : grupos.length === 1 ? grupos[0] : null;
+    // Los horarios con el cupo completo se muestran, pero no se pueden elegir
+    const libres = grupos.filter((g) => !isFull(g));
+    if (!libres.length) {
+        return showMessage(`Los cupos de ${actName()} están completos. Te invitamos a elegir otro FlashLab en la cartelera.`);
+    }
+    act = target && grupos.includes(target) && !isFull(target) ? target : libres.length === 1 ? libres[0] : null;
 
     fillChosen();
     show("form");
     openConfirm();
 }
+
+const isFull = (g) => g.estado === "completo";
 
 function fillChosen() {
     document.title = `${info.nombre} · Solicitar vacante · TUMO Barracas`;
@@ -90,8 +97,8 @@ function fillChosen() {
     $("[data-horario]").hidden = !multi;
     // Lista desplegable: empieza en "Seleccioná" (salvo que se haya llegado con un grupo ya elegido)
     $("[data-horario-select]").innerHTML = '<option value="">Seleccioná</option>' + grupos.map((g) =>
-        `<option value="${escapeHtml(g.id)}" ${act && act.id === g.id ? "selected" : ""}>` +
-        `${escapeHtml(timeText(g.horario))}${g.estado === "espera" ? " (lista de espera)" : ""}</option>`).join("");
+        `<option value="${escapeHtml(g.id)}" ${act && act.id === g.id ? "selected" : ""}${isFull(g) ? " disabled" : ""}>` +
+        `${escapeHtml(timeText(g.horario))}${g.estado === "espera" ? " (lista de espera)" : isFull(g) ? " (cupo completo)" : ""}</option>`).join("");
     updateChoice();
 }
 
@@ -126,9 +133,9 @@ function openConfirm() {
     // Si se llegó con un grupo elegido (o hay uno solo), ya viene marcado
     let elegido = act;
     times.innerHTML = grupos.map((g) => `
-        <button type="button" class="time-opt" role="radio" data-grupo="${escapeHtml(g.id)}">
+        <button type="button" class="time-opt" role="radio" data-grupo="${escapeHtml(g.id)}"${isFull(g) ? ' disabled aria-disabled="true"' : ""}>
             ${CLOCK}<span>${escapeHtml(timeText(g.horario))}</span>
-            ${g.estado === "espera" ? '<small>lista de espera</small>' : ""}
+            ${g.estado === "espera" ? '<small>lista de espera</small>' : isFull(g) ? '<small>cupo completo</small>' : ""}
         </button>`).join("");
     const mark = () => {
         $$(".time-opt", times).forEach((b) => b.setAttribute("aria-checked", String(Boolean(elegido) && b.dataset.grupo === elegido.id)));
@@ -137,7 +144,7 @@ function openConfirm() {
     };
     times.addEventListener("click", (e) => {
         const b = e.target.closest(".time-opt");
-        if (!b) return;
+        if (!b || b.disabled) return;
         elegido = grupos.find((g) => g.id === b.dataset.grupo) || null;
         mark();
     });
@@ -187,6 +194,9 @@ function verifyMessage(r) {
             return ["error", `Este documento ya tiene una inscripción activa. Cada estudiante puede solicitar una sola actividad. Para cambiarla, ${contactText()}.`];
         case "no_cumple":
             return ["error", NOT_ELIGIBLE];
+        case "completo":
+            return ["error", "Este horario ya tiene los cupos completos. Elegí otro horario o, si no hay, otro FlashLab en la " +
+                '<a href="index.html#actividades">cartelera</a>.'];
         case "cerrada":
             return ["error", "La inscripción a esta actividad se cerró."];
         case "actividad_invalida":
@@ -254,7 +264,7 @@ async function runVerify(dni) {
     }, SLOW_MS);
 
     // Sin horario elegido todavía se verifica con el primero: el requisito es el mismo en todos los grupos
-    const target = act || grupos[0];
+    const target = act || grupos.find((g) => !isFull(g)) || grupos[0];
     if (!target) return; // la actividad no cargó: el formulario no está a la vista
     const forId = target.id;
     const r = await apiCall({ action: "verificar", dni, actividad: forId });

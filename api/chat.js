@@ -33,7 +33,7 @@ async function loadActividades() {
     return cartelera.list; // si falla, la última conocida (o null)
 }
 
-const ESTADO = { abierta: "inscripción abierta", espera: "sólo lista de espera", cerrada: "inscripción cerrada" };
+const ESTADO = { abierta: "inscripción abierta", espera: "sólo lista de espera", completo: "cupos completos (no se puede pedir vacante)", cerrada: "inscripción cerrada" };
 
 async function buildSystemPrompt() {
     const EVENT = loadEvent();
@@ -46,7 +46,7 @@ async function buildSystemPrompt() {
             `  Requisitos: ${a.requisito || "sin requisitos previos"}.`,
             a.descripcion ? `  Descripción: ${a.descripcion}` : "  Descripción: todavía no publicada.",
             a.herramientas ? `  Herramientas que se usan: ${a.herramientas}.` : "",
-            a.estado === "cerrada" ? "  No acepta solicitudes." : `  Link para solicitar vacante: /inscripcion.html?actividad=${a.id}`,
+            a.estado === "cerrada" || a.estado === "completo" ? "  No acepta solicitudes." : `  Link para solicitar vacante: /inscripcion.html?actividad=${a.id}`,
         ].filter(Boolean).join("\n")).join("\n")
         : "La cartelera no está disponible en este momento: sugerí mirarla en /index.html#actividades.";
 
